@@ -7,7 +7,7 @@ paradigm: 'Thin Controller -> Action -> DTO -> Eloquent Model'
 scope: 'EkoDoc v1 complet - import, bibliotheque, recherche, edition WYSIWYG, export'
 status: final
 created: '2026-08-31'
-updated: '2026-08-31'
+updated: '2026-09-01'
 binds: [FR1, FR2, FR3, FR4, FR5, FR6, FR7, FR8, FR9, FR10, FR11, FR12, NFR1, NFR2, NFR3, NFR4, NFR5]
 sources:
   - '../../briefs/brief-ekodoc-2026-08-31/brief.md'
@@ -74,11 +74,11 @@ Chaque AD suit le même schéma : **Binds** (FR/NFR ou périmètre couvert), **P
 - **Prevents:** une UI ou un import qui suppose une hiérarchie de dossiers pendant qu'un autre module suppose un tag multiple — deux modèles de classement incompatibles.
 - **Rule:** table `categories` (id, name) à plat, sans parent. `documents.category_id` nullable (`NULL` = "Non classé", jamais bloquant — voir `EXPERIENCE.md` § Component Patterns). Pas de relation many-to-many, pas de hiérarchie. Ceci résout délibérément l'ambiguïté "dossiers et/ou catégories" du PRD (FR2) en faveur d'un classement à plat, cohérent avec le champ unique déjà spécifié côté UX — pas un oubli de la piste "dossiers hiérarchiques".
 
-### AD-6 — Traitement à l'import synchrone `[ADOPTED]`
+### AD-6 — Stockage à l'import synchrone, extraction de texte en file d'attente `[AMENDED 2026-09-01]`
 
 - **Binds:** FR1, FR6
-- **Prevents:** un import qui suppose un traitement en arrière-plan (queue, statut "processing") pendant qu'une autre partie du code suppose que le document est immédiatement complet et cherchable juste après l'import.
-- **Rule:** `ImportDocumentAction` exécute, dans la même requête HTTP : stockage du fichier → extraction de texte → création du `Document` avec `extracted_text` déjà renseigné. L'indexation Scout n'est jamais un appel manuel : le trait `Searchable` la déclenche automatiquement via l'événement `saved` du Model — aucune Action n'appelle `->searchable()` explicitement (Scout ne peut de toute façon indexer qu'un Model déjà persisté). Aucun job en file d'attente en v1. Si l'extraction de texte échoue, l'import n'échoue pas (voir AD-9) ; le document reste seulement absent de la recherche.
+- **Prevents:** un import qui bloque la requête HTTP (et le proxy nginx local) le temps d'extraire le texte d'un document réel volumineux (constaté : PDF de 135 pages dépassant toute limite de timeout raisonnable) ; et, à l'inverse, un import qui suppose un traitement en arrière-plan pendant qu'une autre partie du code suppose le document immédiatement complet et cherchable juste après l'import — d'où le statut `extraction_status` explicite plutôt qu'une simple présence/absence de `extracted_text`.
+- **Rule:** `ImportDocumentAction` exécute, dans la même requête HTTP et dans une transaction dédiée : stockage du fichier → création du `Document` (`extraction_status = pending`). L'extraction de texte est ensuite dispatchée comme job en file d'attente (`ExtractDocumentTextJob`, driver `database`, déjà configuré par le squelette Laravel) et s'exécute hors requête HTTP — un worker (`php artisan queue:work`/`queue:listen`) doit tourner pour la traiter. La requête d'import retourne immédiatement après le stockage, sans attendre l'extraction. `extraction_status` transite `pending` → `processing` → `completed`/`failed` ; le document reste consultable/téléchargeable et visible dans la Bibliothèque quel que soit son statut d'extraction. L'indexation Scout n'est jamais un appel manuel : le trait `Searchable` la déclenche automatiquement via l'événement `saved` du Model. **Décision initiale (AD-6 v1, "aucun job en file d'attente") révisée le 2026-09-01** après un cas réel bloquant (voir memlog/change log de la Story 1.1) : le gain de robustesse pour des documents volumineux/complexes l'emporte sur la simplicité opérationnelle d'un traitement 100% synchrone, au prix d'une dépendance à un worker actif.
 
 ### AD-7 — Fichiers originaux sur disque privé `[ADOPTED]`
 
@@ -96,7 +96,7 @@ Chaque AD suit le même schéma : **Binds** (FR/NFR ou périmètre couvert), **P
 
 - **Binds:** FR1, FR6, FR10
 - **Prevents:** un import de PDF/Word/Excel qui échoue entièrement à cause d'une erreur d'extraction de texte, alors que le fichier lui-même est valide et doit rester consultable/téléchargeable (principe du brief : l'original doit toujours rester accessible) ; et un document créé dans l'éditeur qui rejoint la Bibliothèque sans jamais devenir cherchable, contredisant FR10 ("mêmes propriétés de classement et de recherche qu'un document importé").
-- **Rule:** pour `source = imported`, l'extraction de texte (`smalot/pdfparser` pour PDF ; lecture `phpoffice/phpword`/`phpoffice/phpspreadsheet` pour Word/Excel) tourne dans un bloc isolé de `ImportDocumentAction`. Un échec d'extraction — y compris un PDF scanné sans couche texte, aucun OCR en v1 — logue une alerte et laisse `extracted_text` à `NULL` ; cela n'interrompt jamais l'import, le document reste consultable et seulement absent de la recherche. `smalot/pdfparser` est en maintenance limitée (vérifié 2026-08) ; son échec dégrade la recherche, jamais l'import. Pour `source = created`, `extracted_text` est dérivé automatiquement de `content_html` (texte brut, balises retirées) à chaque sauvegarde — jamais laissé vide pour un document créé.
+- **Rule:** pour `source = imported`, l'extraction de texte (`smalot/pdfparser` pour PDF ; lecture `phpoffice/phpword`/`phpoffice/phpspreadsheet` pour Word/Excel) tourne dans `ExtractDocumentTextJob` (voir AD-6), hors de la transaction d'import. Un échec d'extraction — y compris un PDF scanné sans couche texte (aucun OCR en v1), ou un timeout/erreur fatale sur un document pathologique — logue une alerte, met `extraction_status = failed` et laisse `extracted_text` à `NULL` ; cela n'a jamais pu interrompre l'import lui-même puisque le `Document` et le fichier sont déjà committés avant que le job ne démarre. Le document reste consultable et seulement absent de la recherche. `smalot/pdfparser` est en maintenance limitée (vérifié 2026-08) ; son échec dégrade la recherche, jamais l'import. Pour `source = created`, `extracted_text` est dérivé automatiquement de `content_html` (texte brut, balises retirées) à chaque sauvegarde, de façon synchrone (`extraction_status = completed` immédiatement) — jamais laissé vide ni mis en file d'attente pour un document créé.
 
 ### AD-10 — Prévisualisation Office : conversion à la demande, mise en cache `[ADOPTED]`
 
@@ -205,9 +205,11 @@ app/
     Requests/
       ImportDocumentRequest.php
       SaveDocumentRequest.php
+  Jobs/
+    ExtractDocumentTextJob.php  # extraction de texte hors requête HTTP (AD-6)
   Models/
     Document.php           # Searchable (Scout) ; id, title, source, category_id, file_path,
-                            # mime_type, content_html, extracted_text, timestamps
+                            # mime_type, content_html, extracted_text, extraction_status, timestamps
     Category.php           # id, name
 resources/
   js/
