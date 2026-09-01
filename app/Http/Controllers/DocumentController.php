@@ -13,9 +13,10 @@ use Inertia\Response;
 class DocumentController extends Controller
 {
     /**
-     * Minimal library entry point hosting the Import modal. Full browsing
-     * (cards, filters, search) is out of scope for this story — see
-     * Story 1.2.
+     * Library entry point: renders one card per document (type badge,
+     * title, category placeholder, date), sorted most recent first, and
+     * hosts the Import modal. Search, filters, pagination and category
+     * assignment remain out of scope — see Stories 1.5/1.6/1.7.
      */
     public function index(): Response
     {

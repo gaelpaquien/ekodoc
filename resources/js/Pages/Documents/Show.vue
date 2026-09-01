@@ -2,6 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import DocumentTypeBadge from '@/Components/DocumentTypeBadge.vue';
 
 const props = defineProps({
     document: {
@@ -9,13 +10,6 @@ const props = defineProps({
         required: true,
     },
 });
-
-const typeLabels = {
-    imported: 'Importé',
-    created: 'Créé',
-};
-
-const typeLabel = computed(() => typeLabels[props.document.source] ?? props.document.source);
 
 const formattedDate = computed(() => {
     if (!props.document.created_at) {
@@ -41,9 +35,11 @@ const formattedDate = computed(() => {
             </h1>
 
             <dl class="mt-6 space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
-                <div class="flex gap-2">
+                <div class="flex items-center gap-2">
                     <dt class="font-medium">Type :</dt>
-                    <dd>{{ typeLabel }}</dd>
+                    <dd>
+                        <DocumentTypeBadge :mime-type="document.mime_type" :source="document.source" />
+                    </dd>
                 </div>
                 <div class="flex gap-2">
                     <dt class="font-medium">Ajouté le :</dt>

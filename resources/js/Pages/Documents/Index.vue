@@ -3,6 +3,7 @@ import { Link } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ImportModal from '@/Components/ImportModal.vue';
+import DocumentTypeBadge from '@/Components/DocumentTypeBadge.vue';
 
 defineProps({
     documents: {
@@ -12,6 +13,17 @@ defineProps({
 });
 
 const isImportModalOpen = ref(false);
+
+function formatDate(dateString) {
+    if (!dateString) {
+        return '';
+    }
+
+    return new Intl.DateTimeFormat('fr-FR', {
+        dateStyle: 'long',
+        timeStyle: 'short',
+    }).format(new Date(dateString));
+}
 </script>
 
 <template>
@@ -30,14 +42,33 @@ const isImportModalOpen = ref(false);
                 </button>
             </div>
 
-            <p v-if="documents.length === 0" class="text-neutral-600 dark:text-neutral-400">
-                Aucun document pour le moment.
-            </p>
+            <div v-if="documents.length === 0" class="flex flex-col items-center gap-4 py-16 text-center">
+                <p class="text-neutral-600 dark:text-neutral-400">
+                    Aucun document pour l'instant.
+                </p>
+                <button
+                    type="button"
+                    class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                    @click="isImportModalOpen = true"
+                >
+                    Importer un document
+                </button>
+            </div>
 
-            <ul v-else class="divide-y divide-neutral-200 dark:divide-neutral-800">
-                <li v-for="document in documents" :key="document.id" class="py-3">
-                    <Link :href="`/documents/${document.id}`" class="text-blue-600 hover:underline dark:text-blue-400">
-                        {{ document.title }}
+            <ul v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <li v-for="document in documents" :key="document.id">
+                    <Link
+                        :href="`/documents/${document.id}`"
+                        class="flex h-full flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-4 transition hover:border-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-neutral-800 dark:bg-neutral-900"
+                    >
+                        <DocumentTypeBadge :mime-type="document.mime_type" :source="document.source" />
+                        <p class="font-medium text-neutral-900 dark:text-neutral-100">
+                            {{ document.title }}
+                        </p>
+                        <div class="mt-auto flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-500">
+                            <span>Non classé</span>
+                            <span>{{ formatDate(document.created_at) }}</span>
+                        </div>
                     </Link>
                 </li>
             </ul>
