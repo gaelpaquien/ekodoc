@@ -35,4 +35,20 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | LibreOffice (Office document preview conversion)
+    |--------------------------------------------------------------------------
+    |
+    | Binary invoked by ConvertDocumentToPreviewAction to convert imported
+    | Word/Excel files to PDF for preview (`soffice --headless --convert-to
+    | pdf`). Defaults to "soffice" resolved from the system PATH; override
+    | with LIBREOFFICE_BINARY if LibreOffice isn't on PATH locally.
+    |
+    */
+
+    'libreoffice' => [
+        'binary' => env('LIBREOFFICE_BINARY', 'soffice'),
+    ],
+
 ];
