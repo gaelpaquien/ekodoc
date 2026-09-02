@@ -69,3 +69,19 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-6-search-documents.md`
   summary: Aucune protection contre les réponses Inertia qui arrivent dans le désordre (une requête de recherche plus ancienne mais plus lente pourrait résoudre après une plus récente et écraser des résultats plus à jour) si l'utilisateur tape très vite malgré le debounce de 300ms.
   evidence: Edge Case Hunter (step-04 review) — risque réel mais rare en usage local mono-utilisateur (NFR: pas d'infrastructure partagée) ; corriger proprement nécessiterait un jeton d'annulation/AbortController, hors proportion pour cette story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-7-filter-documents.md`
+  summary: Aucun test au niveau composant Vue ne couvre la nouvelle logique de filtrage d'`Index.vue` (bascule des checkboxes, retrait des chips, les deux drapeaux `isSyncing*FromProps`, l'annulation du debounce de recherche lors d'un changement de filtre) — le dépôt ne contient toujours aucun outil de test JS.
+  evidence: Blind Hunter (step-04 review) — même constat déjà différé pour `CategoryPicker.vue`/`DocumentTypeBadge.vue`/le raccourci `/` de Story 1.6 ; introduire un outil de test JS reste hors proportion pour cette story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-7-filter-documents.md`
+  summary: `categoryIdsFromQuery()` n'impose aucune limite au nombre d'identifiants acceptés avant de les passer à `whereIn('category_id', ...)` — un `category_id[]=...` arbitrairement long est accepté sans garde-fou de taille.
+  evidence: Blind Hunter (step-04 review) — même schéma que l'absence de limite de longueur déjà différée sur le terme de recherche (spec-1-6) ; risque faible en usage local mono-utilisateur, hors proportion pour cette story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-7-filter-documents.md`
+  summary: Aucun index base de données sur `documents.mime_type`/`documents.source` alors que le filtre type exécute désormais un `whereIn('mime_type', ...)`/`where('source', ...)` sur chaque requête filtrée — `category_id` bénéficie d'un index via sa contrainte FK, pas ces colonnes.
+  evidence: Blind Hunter (step-04 review) — non bloquant à l'échelle actuelle (~350 documents, scan trivial) ; même raisonnement que l'absence d'index `FULLTEXT` déjà différée sur `extracted_text` (spec-1-6).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-7-filter-documents.md`
+  summary: La correspondance type→mime est dupliquée entre `DocumentController::TYPE_MIME_MAP` (PHP) et `TYPE_OPTIONS` (Vue, `Index.vue`) sans source commune — un commentaire est le seul lien entre les deux.
+  evidence: Blind Hunter (step-04 review) — même schéma que les autres duplications déjà différées sur cette base de code (formatage de date, mapping mime de prévisualisation) ; à centraliser si un troisième point de branchement type/mime apparaît.

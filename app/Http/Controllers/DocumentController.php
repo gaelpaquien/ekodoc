@@ -8,9 +8,11 @@ use App\Actions\ImportDocumentAction;
 use App\DataTransferObjects\CategorizeDocumentData;
 use App\DataTransferObjects\ConvertDocumentToPreviewData;
 use App\DataTransferObjects\ImportDocumentData;
+use App\Enums\DocumentSource;
 use App\Http\Requests\CategorizeDocumentRequest;
 use App\Http\Requests\ImportDocumentRequest;
 use App\Models\Document;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -25,6 +27,18 @@ class DocumentController extends Controller
     private const PREVIEW_DIRECTORY = 'previews';
 
     /**
+     * type[]-filter value => matching `mime_type`, colocated with the
+     * type-filter parsing/application below (Design Notes, spec-1-7).
+     * `created` is deliberately absent — it filters on `source`, not a
+     * mime type, and is handled separately in applyFilters().
+     */
+    private const TYPE_MIME_MAP = [
+        'pdf' => 'application/pdf',
+        'word' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'excel' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ];
+
+    /**
      * User-uploaded content is streamed inline into an iframe — nosniff
      * closes off content-sniffing if a stored `mime_type` ever mismatches
      * the actual file content.
@@ -35,35 +49,124 @@ class DocumentController extends Controller
      * Library entry point: renders one card per document (type badge,
      * title, category, date), sorted most recent first, and hosts the
      * Import modal. Sole point of entry for the documents query — search
-     * (`?search=`, Story 1.6) and future filters (Story 1.7) both converge
-     * here (AD-8). Pagination remains out of scope.
+     * (`?search=`, Story 1.6) and category/type filters (`?category_id[]=`,
+     * `?type[]=`, Story 1.7) both converge here (AD-8). Pagination remains
+     * out of scope.
      *
      * An empty/absent `search` leaves the previous, unfiltered behavior
      * untouched: `latest()` over `Document::query()`. A non-empty term
      * instead runs through Scout (driver `database`, indexed on
      * `extracted_text` only), constrained to the same eager-load via its
      * query callback — both branches converge on the same `get([...])`.
+     * Filters apply identically to both branches through applyFilters(),
+     * never a second/divergent query path (Boundaries & Constraints,
+     * spec-1-7).
      */
     public function index(Request $request): Response
     {
         $rawSearch = $request->query('search', '');
         $search = trim(is_scalar($rawSearch) ? (string) $rawSearch : '');
 
+        $categoryIds = $this->categoryIdsFromQuery($request);
+        $types = $this->typesFromQuery($request);
+
         $columns = ['id', 'title', 'source', 'mime_type', 'category_id', 'created_at'];
 
         $documents = $search === ''
-            ? Document::query()->with('category:id,name')->latest()->get($columns)
+            ? $this->applyFilters(Document::query(), $categoryIds, $types)
+                ->with('category:id,name')->latest()->get($columns)
             // Scout's `database` driver interpolates the term unescaped into a
             // `LIKE '%...%'` clause (Laravel\Scout\Engines\DatabaseEngine) — `%`/`_`
             // are LIKE wildcards, so they're escaped here to keep the match literal.
             : Document::search(addcslashes($search, '%_'))
-                ->query(fn ($query) => $query->select($columns)->with('category:id,name')->latest())
+                ->query(fn ($query) => $this->applyFilters($query, $categoryIds, $types)
+                    ->select($columns)->with('category:id,name')->latest())
                 ->get();
 
         return Inertia::render('Documents/Index', [
             'documents' => $documents,
             'search' => $search,
+            'categoryFilters' => $categoryIds,
+            'typeFilters' => $types,
         ]);
+    }
+
+    /**
+     * Sole filter-application point, called identically by both `index()`
+     * branches (plain `Document::query()` and the Scout query callback) —
+     * no divergence between the search and non-search paths (AD-8,
+     * Design Notes spec-1-7). ET between the category and type groups, OU
+     * within each group: `whereIn('category_id', ...)` narrows by category
+     * when any is selected, and a single `where()` closure ORs together
+     * the recognized-mime types plus `source = created` when selected.
+     */
+    private function applyFilters(Builder $query, array $categoryIds, array $types): Builder
+    {
+        if ($categoryIds !== []) {
+            $query->whereIn('category_id', $categoryIds);
+        }
+
+        if ($types !== []) {
+            $mimeTypes = array_values(array_intersect_key(self::TYPE_MIME_MAP, array_flip($types)));
+            $includesCreated = in_array('created', $types, true);
+
+            $query->where(function (Builder $typeQuery) use ($mimeTypes, $includesCreated) {
+                if ($mimeTypes !== []) {
+                    $typeQuery->orWhereIn('mime_type', $mimeTypes);
+                }
+
+                if ($includesCreated) {
+                    $typeQuery->orWhere('source', DocumentSource::Created);
+                }
+            });
+        }
+
+        return $query;
+    }
+
+    /**
+     * `category_id[]` as a deduplicated list of positive ints — anything
+     * non-numeric or malformed is dropped rather than surfacing an error,
+     * mirroring how `search` tolerates a non-scalar/missing value.
+     *
+     * `FILTER_VALIDATE_INT` (rather than `is_numeric()`) rejects a value
+     * like `"2.5"` outright instead of silently truncating it to `2` via
+     * `(int) "2.5"` — that truncation could otherwise match a real
+     * category the client never actually selected.
+     */
+    private function categoryIdsFromQuery(Request $request): array
+    {
+        $raw = $request->query('category_id', []);
+
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        $ids = array_map(
+            static fn ($value) => is_scalar($value) ? filter_var($value, FILTER_VALIDATE_INT) : false,
+            $raw,
+        );
+
+        return array_values(array_unique(array_filter($ids, static fn ($value) => $value !== false)));
+    }
+
+    /**
+     * `type[]` filtered down to the four recognized values (Boundaries &
+     * Constraints, spec-1-7: no fifth type) — anything else is silently
+     * dropped, same tolerance as categoryIdsFromQuery().
+     */
+    private function typesFromQuery(Request $request): array
+    {
+        $raw = $request->query('type', []);
+
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        $allowedTypes = [...array_keys(self::TYPE_MIME_MAP), 'created'];
+        $stringValues = array_filter($raw, 'is_string');
+
+        return array_values(array_intersect(array_unique($stringValues), $allowedTypes));
     }
 
     /**
