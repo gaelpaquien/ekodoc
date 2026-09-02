@@ -18,6 +18,26 @@
   summary: Le formatage de date en français (`Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 'short' })`) est dupliqué entre `Index.vue` (`formatDate()`) et `Show.vue` (`formattedDate`) au lieu d'être centralisé dans un helper partagé.
   evidence: Blind Hunter (step-04 review) — même schéma que la duplication du libellé de type déjà résolue dans cette story ; coût de duplication encore faible (une seule ligne de logique), à centraliser si une troisième page a besoin d'afficher une date.
 
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-8-delete-document.md`
+  summary: `DeleteDocumentAction` n'a aucune gestion d'échec réel (permissions, disque indisponible, exception levée par `unsearchable()`/`delete()`) — pas de try/catch, pas de log, pas de transaction, contrairement au précédent posé par `ImportDocumentAction::storeFile()`.
+  evidence: Blind Hunter + Edge Case Hunter (step-04 review) — un échec en cours de séquence dégraderait vers l'état déjà géré par `sourceMissing()` (fichier absent, ligne toujours présente), ce qui borne l'impact pratique ; corriger correctement suppose une décision produit sur la politique d'échec souhaitée (best-effort silencieux vs. transactionnel vs. journalisé et remonté à l'utilisateur), hors proportion pour cette story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-8-delete-document.md`
+  summary: Le comportement interactif de la boîte de dialogue de confirmation de suppression (`Show.vue` : piège de focus, Échap, restauration du focus) n'est vérifié par aucun test automatisé.
+  evidence: Blind Hunter (step-04 review) — même constat déjà différé pour la Story 1.7 (filtres) : le dépôt ne contient aucun outil de test JS (pas de Vitest/Jest).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-8-delete-document.md`
+  summary: `ImportModal.vue` a le même défaut préexistant que celui corrigé dans le nouveau dialogue de suppression : son piège de focus (`trapFocus()`) n'exclut pas les éléments `disabled`, alors que son bouton de fermeture peut être désactivé (`form.processing`).
+  evidence: Edge Case Hunter (step-04 review) — défaut préexistant à cette story, révélé incidemment en corrigeant l'équivalent neuf dans `Show.vue` ; même correctif trivial applicable (`button:not([disabled])`) si une session future touche ce fichier.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-8-delete-document.md`
+  summary: Course rare possible entre une conversion de prévisualisation en cours (`ConvertDocumentToPreviewAction`, verrou `Cache::lock` par document) et une suppression concurrente : le fichier `previews/{id}.pdf` pourrait être réécrit après la suppression et rester orphelin indéfiniment.
+  evidence: Edge Case Hunter (step-04 review) — improbable dans un usage local mono-utilisateur (nécessite deux requêtes concurrentes sur le même document) ; un correctif correct suppose de décider si la suppression doit bloquer sur le même verrou et combien de temps, un arbitrage produit plutôt qu'un correctif mécanique.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-8-delete-document.md`
+  summary: Aucune confirmation visuelle (toast/flash) n'apparaît sur la Bibliothèque après une suppression réussie — l'utilisateur constate seulement l'absence du document.
+  evidence: Blind Hunter (step-04 review) — pas spécifique à cette story : `store()`/`updateCategory()` n'ont eux non plus jamais eu de système de flash-message ; l'app n'en a jamais eu nulle part.
+
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3-preview-document.md`
   summary: Aucun nettoyage de `storage/app/private/previews/{document_id}.pdf` n'existe lors de la suppression d'un document — la Story 1.8 (Supprimer un document) devra faire de ce cache un des éléments nettoyés par `DeleteDocumentAction`.
   evidence: Blind Hunter (step-04 review) — confirmé par lecture du code : rien dans ce diff ne référence de suppression du cache preview ; cohérent avec `epic-1-context.md` qui liste explicitement ce nettoyage comme dépendance de la Story 1.8, pas de la 1.3.

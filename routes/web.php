@@ -10,5 +10,6 @@ Route::get('/documents/{document}', [DocumentController::class, 'show'])->name('
 Route::get('/documents/{document}/preview', [DocumentController::class, 'preview'])->name('documents.preview');
 Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
 Route::patch('/documents/{document}/category', [DocumentController::class, 'updateCategory'])->name('documents.category.update');
+Route::delete('/documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
 
 Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');

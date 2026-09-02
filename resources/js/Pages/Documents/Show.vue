@@ -1,6 +1,6 @@
 <script setup>
 import { Link, router } from '@inertiajs/vue3';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import CategoryPicker from '@/Components/CategoryPicker.vue';
 import DocumentTypeBadge from '@/Components/DocumentTypeBadge.vue';
@@ -70,6 +70,97 @@ const formattedDate = computed(() => {
 
 const previewUrl = computed(() => `/documents/${props.document.id}/preview`);
 const downloadUrl = computed(() => `/documents/${props.document.id}/download`);
+
+// Deletion always requires explicit confirmation (UX-DR21, AD-15) — no
+// undo/SoftDeletes, so the dialog is the only guard against an accidental
+// destructive request. Accessibility mirrors ImportModal.vue: role="dialog",
+// a focus trap, Escape to cancel, and focus restored to the trigger on close.
+const isDeleteDialogOpen = ref(false);
+const isDeleting = ref(false);
+const deleteError = ref('');
+const deleteDialogRef = ref(null);
+const cancelDeleteButtonRef = ref(null);
+let deleteTriggerElement = null;
+
+async function openDeleteDialog(event) {
+    deleteTriggerElement = event?.currentTarget ?? document.activeElement;
+    deleteError.value = '';
+    isDeleteDialogOpen.value = true;
+    await nextTick();
+    // Default focus lands on "Annuler", not the destructive action itself —
+    // a stray Enter press right after opening must never confirm deletion.
+    cancelDeleteButtonRef.value?.focus();
+}
+
+function closeDeleteDialog() {
+    if (isDeleting.value) {
+        // A delete request is in flight: ignore the close request rather
+        // than letting the user believe they cancelled while the deletion
+        // still completes underneath them.
+        return;
+    }
+
+    isDeleteDialogOpen.value = false;
+    deleteError.value = '';
+
+    if (deleteTriggerElement instanceof HTMLElement) {
+        deleteTriggerElement.focus();
+    }
+}
+
+function confirmDelete() {
+    if (isDeleting.value) {
+        // A rapid double-click can fire before Vue re-renders the
+        // `:disabled` attribute onto the Confirm button — guard here too
+        // so a second click never sends a second DELETE request.
+        return;
+    }
+
+    isDeleting.value = true;
+    deleteError.value = '';
+
+    router.delete(`/documents/${props.document.id}`, {
+        onError: () => {
+            deleteError.value = 'Impossible de supprimer le document.';
+        },
+        onFinish: () => {
+            isDeleting.value = false;
+        },
+    });
+}
+
+function onDeleteDialogKeydown(event) {
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        closeDeleteDialog();
+        return;
+    }
+
+    if (event.key === 'Tab') {
+        trapDeleteDialogFocus(event);
+    }
+}
+
+function trapDeleteDialogFocus(event) {
+    const focusable = deleteDialogRef.value?.querySelectorAll(
+        'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+
+    if (!focusable || focusable.length === 0) {
+        return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+    }
+}
 
 const isPdf = computed(() => props.document.mime_type === 'application/pdf');
 const isOfficeDocument = computed(() => [
@@ -195,7 +286,7 @@ onBeforeUnmount(() => {
                 </div>
             </dl>
 
-            <div class="mt-6">
+            <div class="mt-6 flex gap-3">
                 <a
                     v-if="!sourceMissing"
                     :href="downloadUrl"
@@ -210,6 +301,14 @@ onBeforeUnmount(() => {
                     class="inline-flex cursor-not-allowed rounded-md bg-neutral-300 px-4 py-2 text-sm font-medium text-neutral-500 dark:bg-neutral-800 dark:text-neutral-600"
                 >
                     Télécharger
+                </button>
+
+                <button
+                    type="button"
+                    class="inline-flex rounded-md border border-red-600 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:border-red-500 dark:text-red-500 dark:hover:bg-red-950/30"
+                    @click="openDeleteDialog"
+                >
+                    Supprimer
                 </button>
             </div>
 
@@ -254,6 +353,52 @@ onBeforeUnmount(() => {
                     class="rounded-md border border-neutral-200 p-4 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-400"
                 >
                     Aperçu indisponible pour ce type de document.
+                </div>
+            </div>
+        </div>
+
+        <div
+            v-if="isDeleteDialogOpen"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            @keydown="onDeleteDialogKeydown"
+        >
+            <div
+                ref="deleteDialogRef"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="delete-dialog-title"
+                aria-describedby="delete-dialog-description"
+                class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900"
+            >
+                <h2 id="delete-dialog-title" class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                    Supprimer ce document ?
+                </h2>
+                <p id="delete-dialog-description" class="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+                    « {{ document.title }} » sera supprimé définitivement, avec son fichier et son aperçu. Cette action est irréversible.
+                </p>
+
+                <p v-if="deleteError" class="mt-3 text-sm text-red-600 dark:text-red-400" role="alert">
+                    {{ deleteError }}
+                </p>
+
+                <div class="mt-6 flex justify-end gap-3">
+                    <button
+                        ref="cancelDeleteButtonRef"
+                        type="button"
+                        class="rounded-md px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                        :disabled="isDeleting"
+                        @click="closeDeleteDialog"
+                    >
+                        Annuler
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        :disabled="isDeleting"
+                        @click="confirmDelete"
+                    >
+                        {{ isDeleting ? 'Suppression…' : 'Supprimer' }}
+                    </button>
                 </div>
             </div>
         </div>

@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Actions\CategorizeDocumentAction;
 use App\Actions\ConvertDocumentToPreviewAction;
+use App\Actions\DeleteDocumentAction;
 use App\Actions\ImportDocumentAction;
 use App\DataTransferObjects\CategorizeDocumentData;
 use App\DataTransferObjects\ConvertDocumentToPreviewData;
+use App\DataTransferObjects\DeleteDocumentData;
 use App\DataTransferObjects\ImportDocumentData;
 use App\Enums\DocumentSource;
 use App\Http\Requests\CategorizeDocumentRequest;
@@ -234,6 +236,21 @@ class DocumentController extends Controller
         ));
 
         return back();
+    }
+
+    /**
+     * Sole route through which a document is permanently deleted (AD-15) —
+     * always delegates to DeleteDocumentAction, never removes files/index
+     * entries/the row itself directly. Confirmation happens client-side
+     * before this request is ever sent (UX-DR21); no undo, no SoftDeletes.
+     */
+    public function destroy(Document $document, DeleteDocumentAction $action): RedirectResponse
+    {
+        $action(new DeleteDocumentData(
+            document: $document,
+        ));
+
+        return to_route('documents.index');
     }
 
     /**
