@@ -7,10 +7,12 @@ use App\Enums\ExtractionStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Laravel\Scout\Searchable;
 
 class Document extends Model
 {
     use HasFactory;
+    use Searchable;
 
     protected $fillable = [
         'title',
@@ -38,5 +40,18 @@ class Document extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    /**
+     * Scout index limited to `extracted_text` (Boundaries & Constraints,
+     * spec-1-6) — title/metadata deliberately excluded, driver `database`
+     * runs this straight through a `LIKE`/fulltext query, no separate index
+     * to keep in sync.
+     */
+    public function toSearchableArray(): array
+    {
+        return [
+            'extracted_text' => $this->extracted_text,
+        ];
     }
 }

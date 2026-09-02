@@ -49,3 +49,23 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-5-categorize-document.md`
   summary: Aucun test au niveau composant Vue ne couvre `CategoryPicker.vue` (flux créer/annuler/Échap, mise à jour optimiste) — le dépôt ne contient toujours aucun outil de test JS (pas de Vitest/`@vue/test-utils`).
   evidence: Verification Gap (step-04 review) — même constat déjà différé pour `DocumentTypeBadge.vue` dans spec-1-2 ; s'aggrave à mesure que la logique côté client s'accumule (validation optimiste, gestion d'erreur), mais introduire un outil de test JS reste hors proportion pour cette story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-6-search-documents.md`
+  summary: Le raccourci clavier `/` (focus barre de recherche, ignoré si un champ ou la modale d'import a déjà le focus) et le debounce de saisie dans `Index.vue` ne sont couverts par aucun test automatisé — même absence d'outillage de test JS que `CategoryPicker.vue`/`DocumentTypeBadge.vue`.
+  evidence: Matrix Test Audit (step-03) — 2 des 5 lignes de la matrice I/O (raccourci `/` hors champ / dans un champ actif) sont purement côté client, non testables par la suite Pest existante ; seule la vérification manuelle décrite dans la spec les couvre.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-6-search-documents.md`
+  summary: Le terme de recherche (`?search=`) n'a aucune limite de longueur avant d'être transmis à `Document::search()` — une chaîne arbitrairement longue peut être soumise sans garde-fou sur le coût de la requête `LIKE`.
+  evidence: Blind Hunter (step-04 review) — risque réel mais faible en usage local mono-utilisateur ; corriger nécessiterait de décider d'une limite arbitraire, hors proportion pour cette story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-6-search-documents.md`
+  summary: Aucun index `FULLTEXT` sur `documents.extracted_text` — la recherche reste un scan `LIKE '%terme%'` sans index ; l'objectif "<1s pour ~350 documents" (NFR2) n'est donc pas techniquement garanti si le corpus grossit significativement au-delà de cet ordre de grandeur.
+  evidence: Blind Hunter (step-04 review) — non bloquant à l'échelle actuelle (~350 documents, scan trivial), et le driver `database` de Scout n'utilise `FULLTEXT` que si la colonne est explicitement déclarée comme telle ; à revisiter si la volumétrie dépasse l'ordre de grandeur documenté dans l'epic.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-6-search-documents.md`
+  summary: Aucun test ne vérifie la casse/les accents du terme de recherche (ex. variante majuscule ou sans accent d'un mot accentué) — le comportement de repli de casse/accents peut différer entre SQLite (tests) et MySQL (production).
+  evidence: Blind Hunter (step-04 review) — écart d'infrastructure de test pré-existant (SQLite en test, MySQL en production), pas introduit spécifiquement par ce diff ; nécessiterait de tester contre une vraie base MySQL pour être vérifié fiablement.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-6-search-documents.md`
+  summary: Aucune protection contre les réponses Inertia qui arrivent dans le désordre (une requête de recherche plus ancienne mais plus lente pourrait résoudre après une plus récente et écraser des résultats plus à jour) si l'utilisateur tape très vite malgré le debounce de 300ms.
+  evidence: Edge Case Hunter (step-04 review) — risque réel mais rare en usage local mono-utilisateur (NFR: pas d'infrastructure partagée) ; corriger proprement nécessiterait un jeton d'annulation/AbortController, hors proportion pour cette story.

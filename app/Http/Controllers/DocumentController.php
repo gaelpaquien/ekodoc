@@ -12,6 +12,7 @@ use App\Http\Requests\CategorizeDocumentRequest;
 use App\Http\Requests\ImportDocumentRequest;
 use App\Models\Document;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -33,16 +34,35 @@ class DocumentController extends Controller
     /**
      * Library entry point: renders one card per document (type badge,
      * title, category, date), sorted most recent first, and hosts the
-     * Import modal. Search, filters and pagination remain out of scope —
-     * see Stories 1.6/1.7.
+     * Import modal. Sole point of entry for the documents query — search
+     * (`?search=`, Story 1.6) and future filters (Story 1.7) both converge
+     * here (AD-8). Pagination remains out of scope.
+     *
+     * An empty/absent `search` leaves the previous, unfiltered behavior
+     * untouched: `latest()` over `Document::query()`. A non-empty term
+     * instead runs through Scout (driver `database`, indexed on
+     * `extracted_text` only), constrained to the same eager-load via its
+     * query callback — both branches converge on the same `get([...])`.
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        $rawSearch = $request->query('search', '');
+        $search = trim(is_scalar($rawSearch) ? (string) $rawSearch : '');
+
+        $columns = ['id', 'title', 'source', 'mime_type', 'category_id', 'created_at'];
+
+        $documents = $search === ''
+            ? Document::query()->with('category:id,name')->latest()->get($columns)
+            // Scout's `database` driver interpolates the term unescaped into a
+            // `LIKE '%...%'` clause (Laravel\Scout\Engines\DatabaseEngine) — `%`/`_`
+            // are LIKE wildcards, so they're escaped here to keep the match literal.
+            : Document::search(addcslashes($search, '%_'))
+                ->query(fn ($query) => $query->select($columns)->with('category:id,name')->latest())
+                ->get();
+
         return Inertia::render('Documents/Index', [
-            'documents' => Document::query()
-                ->with('category:id,name')
-                ->latest()
-                ->get(['id', 'title', 'source', 'mime_type', 'category_id', 'created_at']),
+            'documents' => $documents,
+            'search' => $search,
         ]);
     }
 
