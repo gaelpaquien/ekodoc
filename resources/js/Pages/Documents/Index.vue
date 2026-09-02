@@ -66,7 +66,7 @@ function formatDate(dateString) {
                             {{ document.title }}
                         </p>
                         <div class="mt-auto flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-500">
-                            <span>Non classé</span>
+                            <span>{{ document.category?.name ?? 'Non classé' }}</span>
                             <span>{{ formatDate(document.created_at) }}</span>
                         </div>
                     </Link>

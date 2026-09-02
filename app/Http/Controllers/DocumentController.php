@@ -2,14 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\CategorizeDocumentAction;
 use App\Actions\ConvertDocumentToPreviewAction;
 use App\Actions\ImportDocumentAction;
+use App\DataTransferObjects\CategorizeDocumentData;
 use App\DataTransferObjects\ConvertDocumentToPreviewData;
 use App\DataTransferObjects\ImportDocumentData;
+use App\Http\Requests\CategorizeDocumentRequest;
 use App\Http\Requests\ImportDocumentRequest;
 use App\Models\Document;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -28,40 +32,85 @@ class DocumentController extends Controller
 
     /**
      * Library entry point: renders one card per document (type badge,
-     * title, category placeholder, date), sorted most recent first, and
-     * hosts the Import modal. Search, filters, pagination and category
-     * assignment remain out of scope — see Stories 1.5/1.6/1.7.
+     * title, category, date), sorted most recent first, and hosts the
+     * Import modal. Search, filters and pagination remain out of scope —
+     * see Stories 1.6/1.7.
      */
     public function index(): Response
     {
         return Inertia::render('Documents/Index', [
             'documents' => Document::query()
+                ->with('category:id,name')
                 ->latest()
-                ->get(['id', 'title', 'source', 'mime_type', 'created_at']),
+                ->get(['id', 'title', 'source', 'mime_type', 'category_id', 'created_at']),
         ]);
     }
 
-    public function store(ImportDocumentRequest $request, ImportDocumentAction $action): RedirectResponse
+    /**
+     * ImportDocumentAction never touches `category_id` (Boundaries &
+     * Constraints, spec-1-5) — an optional category chosen in the Import
+     * modal is assigned afterwards, in a second step, through
+     * CategorizeDocumentAction, the sole write point for it (AD-16).
+     *
+     * Both calls run inside one transaction: without it, a
+     * CategorizeDocumentAction failure after a successful import would
+     * leave an orphaned Document row committed with no way to roll it
+     * back.
+     */
+    public function store(ImportDocumentRequest $request, ImportDocumentAction $import, CategorizeDocumentAction $categorize): RedirectResponse
     {
-        $document = $action(new ImportDocumentData(
-            file: $request->file('file'),
-        ));
+        $document = DB::transaction(function () use ($request, $import, $categorize) {
+            $document = $import(new ImportDocumentData(
+                file: $request->file('file'),
+            ));
+
+            $categoryId = $request->validated('category_id');
+
+            if ($categoryId !== null) {
+                $categorize(new CategorizeDocumentData(
+                    document: $document,
+                    categoryId: $categoryId,
+                ));
+            }
+
+            return $document;
+        });
 
         return to_route('documents.show', $document);
     }
 
     public function show(Document $document): Response
     {
+        $document->loadMissing('category:id,name');
+
         return Inertia::render('Documents/Show', [
             'document' => [
                 'id' => $document->id,
                 'title' => $document->title,
                 'source' => $document->source,
                 'mime_type' => $document->mime_type,
+                'category_id' => $document->category_id,
+                'category' => $document->category,
                 'created_at' => $document->created_at,
             ],
             'sourceMissing' => $this->sourceMissing($document),
         ]);
+    }
+
+    /**
+     * Sole route through which a document's category is reassigned or
+     * cleared back to "Uncategorized" after creation — always delegates
+     * to CategorizeDocumentAction (AD-16), never writes `category_id`
+     * itself.
+     */
+    public function updateCategory(CategorizeDocumentRequest $request, Document $document, CategorizeDocumentAction $action): RedirectResponse
+    {
+        $action(new CategorizeDocumentData(
+            document: $document,
+            categoryId: $request->validated('category_id'),
+        ));
+
+        return back();
     }
 
     /**

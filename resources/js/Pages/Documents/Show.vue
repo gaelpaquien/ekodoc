@@ -1,7 +1,8 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import CategoryPicker from '@/Components/CategoryPicker.vue';
 import DocumentTypeBadge from '@/Components/DocumentTypeBadge.vue';
 
 const props = defineProps({
@@ -14,6 +15,47 @@ const props = defineProps({
         default: false,
     },
 });
+
+// Unlike the Import modal (where the document doesn't exist yet),
+// CategoryPicker's change here writes immediately: the Document Detail
+// page is the "reassign" / "clear back to Uncategorized" surface from the
+// I/O matrix (spec-1-5), so every emitted update:modelValue is persisted
+// through PATCH /documents/{id}/category — the only place that route is
+// called from.
+const categoryId = ref(props.document.category_id ?? null);
+const isSavingCategory = ref(false);
+const categoryError = ref('');
+
+// Inertia can reuse this component instance across a <Link> navigation
+// from one document to another — resync the local selection whenever the
+// underlying document prop changes rather than keeping the previous
+// document's category selected.
+watch(() => props.document.id, () => {
+    categoryId.value = props.document.category_id ?? null;
+    categoryError.value = '';
+});
+
+function onCategoryChange(value) {
+    categoryId.value = value;
+    isSavingCategory.value = true;
+    categoryError.value = '';
+
+    router.patch(`/documents/${props.document.id}/category`, { category_id: value }, {
+        preserveScroll: true,
+        preserveState: true,
+        onError: (errors) => {
+            // The optimistic selection above was never actually persisted
+            // — revert to the document's last known-good category rather
+            // than leaving the picker showing a rejected value with no
+            // indication anything went wrong.
+            categoryId.value = props.document.category_id ?? null;
+            categoryError.value = errors.category_id ?? 'Impossible de mettre à jour la catégorie.';
+        },
+        onFinish: () => {
+            isSavingCategory.value = false;
+        },
+    });
+}
 
 const formattedDate = computed(() => {
     if (!props.document.created_at) {
@@ -141,6 +183,15 @@ onBeforeUnmount(() => {
                 <div class="flex gap-2">
                     <dt class="font-medium">Ajouté le :</dt>
                     <dd>{{ formattedDate }}</dd>
+                </div>
+                <div class="flex items-start gap-2">
+                    <dt class="mt-2 font-medium">Catégorie :</dt>
+                    <dd class="w-full max-w-xs">
+                        <CategoryPicker :model-value="categoryId" :disabled="isSavingCategory" @update:model-value="onCategoryChange" />
+                        <p v-if="categoryError" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
+                            {{ categoryError }}
+                        </p>
+                    </dd>
                 </div>
             </dl>
 

@@ -41,3 +41,11 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3-preview-document.md`
   summary: La conversion LibreOffice headless de fichiers Word/Excel importés (potentiellement porteurs de macros) tourne sans isolation (pas de profil utilisateur restreint, pas de désactivation explicite des macros) — risque de sécurité si un fichier malveillant est un jour importé.
   evidence: Blind Hunter (step-04 review) — décision d'architecture déjà tranchée au niveau epic (invocation `soffice --headless --convert-to pdf` brute, epic-1-context.md) ; risque jugé faible en pratique pour un usage local mono-utilisateur v1 (l'utilisateur importe ses propres fichiers), mais à durcir si l'app s'ouvre un jour à des fichiers non maîtrisés.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-5-categorize-document.md`
+  summary: Si l'utilisateur navigue vers un autre document pendant qu'une réassignation de catégorie est encore en vol (`PATCH /documents/{id}/category`), la visite Inertia suivante peut annuler/faire courir en concurrence cette requête, faisant disparaître silencieusement le changement de catégorie.
+  evidence: Edge Case Hunter (step-04 review) — comportement par défaut du routeur Inertia (une visite en vol peut être remplacée) ; risque réel mais rare pour un usage local mono-utilisateur, nécessiterait un token d'annulation dédié pour être corrigé proprement.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-5-categorize-document.md`
+  summary: Aucun test au niveau composant Vue ne couvre `CategoryPicker.vue` (flux créer/annuler/Échap, mise à jour optimiste) — le dépôt ne contient toujours aucun outil de test JS (pas de Vitest/`@vue/test-utils`).
+  evidence: Verification Gap (step-04 review) — même constat déjà différé pour `DocumentTypeBadge.vue` dans spec-1-2 ; s'aggrave à mesure que la logique côté client s'accumule (validation optimiste, gestion d'erreur), mais introduire un outil de test JS reste hors proportion pour cette story.

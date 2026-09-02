@@ -4,9 +4,8 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\File;
 
-class ImportDocumentRequest extends FormRequest
+class CategorizeDocumentRequest extends FormRequest
 {
     /**
      * No authentication/authorization exists in v1 (NFR3) — always allowed.
@@ -17,11 +16,9 @@ class ImportDocumentRequest extends FormRequest
     }
 
     /**
-     * An optional category chosen in the Import modal's CategoryPicker is
-     * serialized into the same multipart request as the file — Inertia
-     * forms send a null value as an empty string over the wire, so
-     * normalize it back to null before validation so `nullable` applies
-     * correctly.
+     * Inertia forms serialize a null `category_id` (clearing back to
+     * "Uncategorized") as an empty string over the wire — normalize it
+     * back to null before validation so `nullable` applies correctly.
      */
     protected function prepareForValidation(): void
     {
@@ -36,10 +33,6 @@ class ImportDocumentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'file' => [
-                'required',
-                File::types(['pdf', 'docx', 'xlsx'])->max(20 * 1024),
-            ],
             'category_id' => ['nullable', 'integer', Rule::exists('categories', 'id')],
         ];
     }
@@ -49,12 +42,7 @@ class ImportDocumentRequest extends FormRequest
      */
     public function messages(): array
     {
-        $acceptedFormats = 'Formats acceptés : PDF, Word (.docx), Excel (.xlsx).';
-
         return [
-            'file.required' => "Merci de sélectionner un fichier à importer. {$acceptedFormats}",
-            'file.mimes' => "Format non supporté. {$acceptedFormats}",
-            'file.max' => "Fichier trop volumineux (20 Mo maximum). {$acceptedFormats}",
             'category_id.integer' => 'Catégorie invalide.',
             'category_id.exists' => 'Catégorie invalide.',
         ];

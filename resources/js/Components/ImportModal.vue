@@ -1,6 +1,7 @@
 <script setup>
 import { useForm } from '@inertiajs/vue3';
 import { computed, nextTick, ref, watch } from 'vue';
+import CategoryPicker from '@/Components/CategoryPicker.vue';
 
 const props = defineProps({
     open: {
@@ -17,6 +18,7 @@ const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 
 const form = useForm({
     file: null,
+    category_id: null,
 });
 
 const clientError = ref('');
@@ -26,7 +28,7 @@ const fileInputRef = ref(null);
 const closeButtonRef = ref(null);
 let triggerElement = null;
 
-const errorMessage = computed(() => clientError.value || form.errors.file || '');
+const errorMessage = computed(() => clientError.value || form.errors.file || form.errors.category_id || '');
 
 function extensionOf(filename) {
     return (filename.split('.').pop() || '').toLowerCase();
@@ -202,6 +204,10 @@ watch(
                 <p class="text-xs text-neutral-500 dark:text-neutral-500">
                     Formats acceptés : {{ ACCEPTED_LABEL }}
                 </p>
+            </div>
+
+            <div class="mt-4">
+                <CategoryPicker v-model="form.category_id" :disabled="form.processing" />
             </div>
 
             <p v-if="form.processing" class="mt-3 text-sm text-neutral-600 dark:text-neutral-400" role="status">

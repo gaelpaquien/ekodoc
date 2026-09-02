@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Enums\ExtractionStatus;
+use App\Models\Category;
 use App\Models\Document;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -45,6 +46,13 @@ class HandleInertiaRequests extends Middleware
                 ->whereIn('extraction_status', [ExtractionStatus::Pending, ExtractionStatus::Processing])
                 ->orderBy('created_at')
                 ->get(['id', 'title', 'extraction_status']),
+            // Powers CategoryPicker.vue (Import modal + Document Detail),
+            // shared globally so creating a category from either context
+            // updates the picker without a full remount (Design Notes,
+            // spec-1-5).
+            'categories' => fn () => Category::query()
+                ->orderBy('name')
+                ->get(['id', 'name']),
         ];
     }
 }
