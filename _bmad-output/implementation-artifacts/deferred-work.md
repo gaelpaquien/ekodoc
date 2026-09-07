@@ -129,3 +129,19 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1-create-document-editor.md`
   summary: Aucun test automatisé n'observe quelle branche du template `Show.vue` s'affiche réellement pour un document créé (`isCreated` vrai/faux) — `CreateDocumentTest.php` ne vérifie que les props Inertia envoyées, pas le rendu. Une régression sur `isCreated` ferait retomber silencieusement l'affichage sur le message "fichier introuvable" sans qu'aucun test échoue.
   evidence: Verification Gap Reviewer (step-04 review) — confirmé par recherche : aucun framework de test JS/composant n'existe dans le projet (`package.json` ne déclare ni runner ni script `test`, aucun fichier `*.spec.js`/`*.test.js` trouvé) ; fermer ce trou suppose d'introduire un outillage de test frontend (Dusk/Playwright), hors proportion pour cette seule story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-insert-images-inline.md`
+  summary: Aucun nettoyage automatique des dossiers `documents/tmp/{token}/` abandonnés — un brouillon dans lequel une ou plusieurs images ont été insérées puis jamais enregistré (`Enregistrer` jamais cliqué, page fermée) laisse ses fichiers indéfiniment sur le disque privé, sans qu'aucun `Document` ne les référence.
+  evidence: Boundaries & Constraints, spec-2-2 ("Never") — exclusion de périmètre délibérée et documentée par l'humain dès l'intent ; corriger nécessiterait une tâche planifiée (purge des dossiers `tmp/*` plus vieux qu'un certain âge) ou un nettoyage côté client (`beforeunload`, peu fiable), hors proportion pour cette story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-insert-images-inline.md`
+  summary: Aucun test JS/composant ne couvre le dialogue de saisie du texte alternatif ni le glisser-déposer d'image dans `Editor.vue` (calcul de la position d'insertion via `posAtCoords`, piège de focus, Échap) — même absence d'outillage de test JS que le reste du projet (pas de Vitest/`@vue/test-utils`).
+  evidence: Même constat déjà différé pour `CategoryPicker.vue`/le dialogue de suppression de `Show.vue` (spec-1-5, spec-1-8) ; introduire un outillage de test frontend reste hors proportion pour cette story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-insert-images-inline.md`
+  summary: Le déplacement disque des images de brouillon (`relocateDraftImages`) n'est pas couvert par la `DB::transaction()` qui l'englobe — si le `forceFill()->save()` final échoue après un déplacement déjà réussi, les fichiers restent orphelins dans `documents/{id}/images/` alors que la ligne `Document` est annulée par le rollback.
+  evidence: Blind Hunter + Edge Case Hunter (step-04 review, spec-2-2) — scénario rare (nécessite un échec DB juste après un `Document::create()` réussi dans la même transaction) ; même nature que le trou déjà accepté sur les dossiers `tmp/{token}` abandonnés (orphelins sans document propriétaire), pas de mécanisme de nettoyage existant à réutiliser.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-insert-images-inline.md`
+  summary: Aucun test ne force l'échec de `relocateDraftImages()` (ex. `Storage::move()` retournant `false`) pour vérifier que la transaction annule bien la création du `Document` et que le dossier de destination est nettoyé.
+  evidence: Verification Gap Reviewer (step-04 review) — même trou déjà accepté sur la branche échec-de-stockage structurellement identique de `ImportDocumentAction::storeFile()` ; aucun pattern de mock/fake d'échec disque n'existe ailleurs dans le projet (`Storage::fake('local')` réussit toujours), introduire ce tooling est hors proportion pour cette story.

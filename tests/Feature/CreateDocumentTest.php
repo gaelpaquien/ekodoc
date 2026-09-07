@@ -4,6 +4,9 @@ use App\Enums\DocumentSource;
 use App\Enums\ExtractionStatus;
 use App\Models\Category;
 use App\Models\Document;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 function createDocumentPayload(array $overrides = []): array
 {
@@ -11,6 +14,22 @@ function createDocumentPayload(array $overrides = []): array
         'title' => 'Compte rendu réunion',
         'content_html' => '<h1>Compte rendu</h1><p>Décisions prises en réunion.</p>',
     ], $overrides);
+}
+
+/**
+ * Uploads one draft image the same way the editor does, and returns its
+ * flashed url/alt/filename — the same payload the editor's flash watch
+ * would insert into `content_html` before "Enregistrer" is ever clicked.
+ */
+function uploadDraftImage(string $draftToken): array
+{
+    test()->post('/documents/create/images', [
+        'draft_token' => $draftToken,
+        'image' => UploadedFile::fake()->image('photo.jpg', 200, 200),
+        'alt' => 'Photo de test',
+    ]);
+
+    return session('uploadedImage');
 }
 
 // --- Enregistrement, catégorie déjà choisie ---------------------------------
@@ -162,4 +181,75 @@ it('renders the empty editor page at GET /documents/create', function () {
     $response = test()->get('/documents/create');
 
     $response->assertInertia(fn ($page) => $page->component('Documents/Editor'));
+});
+
+// --- Image insérée en brouillon, déplacement + réécriture au save -----------
+
+it('moves a draft image into the document directory and rewrites content_html with its final url', function () {
+    Storage::fake('local');
+
+    $draftToken = Str::uuid()->toString();
+    $uploadedImage = uploadDraftImage($draftToken);
+
+    $response = test()->post('/documents/create', createDocumentPayload([
+        'content_html' => "<p>Voici le schéma :</p><img src=\"{$uploadedImage['url']}\" alt=\"{$uploadedImage['alt']}\">",
+        'draft_token' => $draftToken,
+    ]));
+
+    $document = Document::sole();
+    $response->assertRedirect("/documents/{$document->id}");
+
+    $finalSrc = "/documents/{$document->id}/images/{$uploadedImage['filename']}";
+    expect($document->content_html)->toContain("<img src=\"{$finalSrc}\" alt=\"{$uploadedImage['alt']}\">");
+
+    Storage::disk('local')->assertExists("documents/{$document->id}/images/{$uploadedImage['filename']}");
+    Storage::disk('local')->assertMissing("documents/tmp/{$draftToken}/images/{$uploadedImage['filename']}");
+
+    // Visible et fonctionnelle sur la Fiche document, servie par la route
+    // applicative dédiée (Acceptance Criteria, spec-2-2).
+    test()->get($finalSrc)->assertOk();
+});
+
+it('creates a document with no image ever inserted as a no-op on the (never-created) tmp directory', function () {
+    Storage::fake('local');
+
+    $draftToken = Str::uuid()->toString();
+
+    $response = test()->post('/documents/create', createDocumentPayload(['draft_token' => $draftToken]));
+
+    $document = Document::sole();
+    $response->assertRedirect("/documents/{$document->id}");
+    Storage::disk('local')->assertDirectoryEmpty("documents/{$document->id}");
+});
+
+it('drops an <img> tag whose src does not match this draft\'s own tmp image url (forged content_html)', function () {
+    Storage::fake('local');
+
+    $response = test()->post('/documents/create', createDocumentPayload([
+        'content_html' => '<p>Texte</p><img src="https://evil.example/x.jpg" alt="x" onerror="alert(1)">',
+    ]));
+
+    $document = Document::sole();
+    $response->assertRedirect("/documents/{$document->id}");
+    expect($document->content_html)->toBe('<p>Texte</p>');
+});
+
+it('drops an <img> tag pointing at a different draft\'s tmp directory (cross-token forgery)', function () {
+    Storage::fake('local');
+
+    $ownToken = Str::uuid()->toString();
+    $otherToken = Str::uuid()->toString();
+    $otherImage = uploadDraftImage($otherToken);
+
+    $response = test()->post('/documents/create', createDocumentPayload([
+        'content_html' => "<p>Texte</p><img src=\"{$otherImage['url']}\" alt=\"vol\">",
+        'draft_token' => $ownToken,
+    ]));
+
+    $document = Document::sole();
+    $response->assertRedirect("/documents/{$document->id}");
+    expect($document->content_html)->toBe('<p>Texte</p>');
+    // The other draft's own image is left untouched — only this document's
+    // own draft directory is ever a relocation target.
+    Storage::disk('local')->assertExists("documents/tmp/{$otherToken}/images/{$otherImage['filename']}");
 });

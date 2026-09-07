@@ -443,6 +443,13 @@ onBeforeUnmount(() => {
     margin: 0.5rem 0;
 }
 
+:deep(.tiptap-content img) {
+    max-width: 100%;
+    height: auto;
+    margin: 0.75rem 0;
+    border-radius: 0.25rem;
+}
+
 :deep(.tiptap-content ul) {
     list-style: disc;
     padding-left: 1.5rem;

@@ -53,6 +53,14 @@ class HandleInertiaRequests extends Middleware
             'categories' => fn () => Category::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            // Sole channel back from the image-upload endpoint to the
+            // editor (AD-13, spec-2-2: `return back()`, never
+            // `response()->json()`) — Laravel's own flash bag ages this
+            // out automatically after the one request that follows the
+            // redirect, so no manual cleanup is needed here.
+            'flash' => fn () => [
+                'uploadedImage' => session('uploadedImage'),
+            ],
         ];
     }
 }

@@ -7,15 +7,18 @@ use App\Actions\ConvertDocumentToPreviewAction;
 use App\Actions\CreateDocumentAction;
 use App\Actions\DeleteDocumentAction;
 use App\Actions\ImportDocumentAction;
+use App\Actions\UploadEditorImageAction;
 use App\DataTransferObjects\CategorizeDocumentData;
 use App\DataTransferObjects\ConvertDocumentToPreviewData;
 use App\DataTransferObjects\CreateDocumentData;
 use App\DataTransferObjects\DeleteDocumentData;
 use App\DataTransferObjects\ImportDocumentData;
+use App\DataTransferObjects\UploadEditorImageData;
 use App\Enums\DocumentSource;
 use App\Http\Requests\CategorizeDocumentRequest;
 use App\Http\Requests\CreateDocumentRequest;
 use App\Http\Requests\ImportDocumentRequest;
+use App\Http\Requests\UploadEditorImageRequest;
 use App\Models\Document;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -44,9 +47,10 @@ class DocumentController extends Controller
     ];
 
     /**
-     * User-uploaded content is streamed inline into an iframe — nosniff
-     * closes off content-sniffing if a stored `mime_type` ever mismatches
-     * the actual file content.
+     * User-uploaded content is streamed inline — into a preview iframe, or
+     * an `<img>` (spec-2-2) — nosniff closes off content-sniffing if a
+     * stored file's actual content ever mismatches what its extension/
+     * validated mime type implies.
      */
     private const PREVIEW_RESPONSE_HEADERS = ['X-Content-Type-Options' => 'nosniff'];
 
@@ -232,6 +236,7 @@ class DocumentController extends Controller
             $document = $create(new CreateDocumentData(
                 title: $request->validated('title'),
                 contentHtml: $request->validated('content_html'),
+                draftToken: $request->validated('draft_token'),
             ));
 
             $categoryId = $request->validated('category_id');
@@ -247,6 +252,61 @@ class DocumentController extends Controller
         });
 
         return to_route('documents.show', $document);
+    }
+
+    /**
+     * Sole entry point for an image inserted into the editor before its
+     * document exists (FR9, spec-2-2) — always delegates to
+     * UploadEditorImageAction, which stores it under a temporary,
+     * draft-token-keyed area (AD-14 without a `document_id` yet
+     * available). Communicates back to the editor exclusively through a
+     * standard Inertia redirect plus the shared `flash.uploadedImage` prop
+     * (AD-13) — never `response()->json()` — so the client reads it via
+     * `preserveState`, keeping the in-progress draft untouched.
+     */
+    public function storeEditorImage(UploadEditorImageRequest $request, UploadEditorImageAction $upload): RedirectResponse
+    {
+        $uploadedImage = $upload(new UploadEditorImageData(
+            draftToken: $request->validated('draft_token'),
+            image: $request->file('image'),
+            alt: $request->validated('alt'),
+        ));
+
+        return back()->with('uploadedImage', $uploadedImage);
+    }
+
+    /**
+     * Streams a temporarily stored draft image back to the editor — the
+     * only route an image inserted into a not-yet-saved document is ever
+     * served from, before CreateDocumentAction moves it into its final
+     * `documents/{id}/images/` home at save time. `{token}`/`{filename}`
+     * are constrained at the route level (routes/web.php) to the exact
+     * UUID/uuid.ext shapes this story ever produces, so a missing file is
+     * the only failure mode left to handle here.
+     */
+    public function serveDraftImage(string $token, string $filename): StreamedResponse
+    {
+        $path = "documents/tmp/{$token}/images/{$filename}";
+
+        abort_unless(Storage::disk('local')->exists($path), 404);
+
+        return Storage::disk('local')->response($path, $filename, self::PREVIEW_RESPONSE_HEADERS);
+    }
+
+    /**
+     * Streams an image embedded in a saved document's `content_html` — the
+     * sole route through which a document's inline images are ever served
+     * (never base64, AD-14). Mirrors serveDraftImage()'s shape, just
+     * rooted at the document's own final directory instead of a draft's
+     * temporary one.
+     */
+    public function serveDocumentImage(Document $document, string $filename): StreamedResponse
+    {
+        $path = "documents/{$document->id}/images/{$filename}";
+
+        abort_unless(Storage::disk('local')->exists($path), 404);
+
+        return Storage::disk('local')->response($path, $filename, self::PREVIEW_RESPONSE_HEADERS);
     }
 
     public function show(Document $document): Response

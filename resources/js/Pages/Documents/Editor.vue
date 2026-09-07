@@ -1,19 +1,29 @@
 <script setup>
-import { Link, useForm } from '@inertiajs/vue3';
+import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { EditorContent, useEditor } from '@tiptap/vue-3';
 import StarterKit from '@tiptap/starter-kit';
 import { Table } from '@tiptap/extension-table';
 import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
 import TableRow from '@tiptap/extension-table-row';
-import { nextTick, onMounted, ref } from 'vue';
+import Image from '@tiptap/extension-image';
+import { nextTick, onMounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import CategoryPicker from '@/Components/CategoryPicker.vue';
+
+// Generated once, client-side, the moment the editor opens (Design Notes,
+// spec-2-2) — keys every image this session uploads before the document
+// itself has an id, and travels along with the final save so
+// CreateDocumentAction knows which tmp/{token} directory to relocate.
+// crypto.randomUUID() needs no server round-trip, so the very first image
+// can upload immediately.
+const draftToken = crypto.randomUUID();
 
 const form = useForm({
     title: '',
     content_html: '',
     category_id: null,
+    draft_token: draftToken,
 });
 
 const titleInputRef = ref(null);
@@ -33,6 +43,12 @@ const editor = useEditor({
         TableRow,
         TableHeader,
         TableCell,
+        // `allowBase64: false` (the default) closes off a pasted/dropped
+        // image ever landing in the document as a base64 `src` — every
+        // image reaches the document only through uploadImage() below,
+        // which always inserts the app's own served URL (AD-14, Boundaries
+        // & Constraints spec-2-2).
+        Image.configure({ allowBase64: false }),
     ],
     editorProps: {
         attributes: {
@@ -56,6 +72,210 @@ function insertTable() {
         .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
         .run();
 }
+
+// --- Insertion d'image (bouton + glisser-déposer, spec-2-2) -----------------
+//
+// Both entry points below (onImageInputChange/onEditorDrop) funnel into the
+// very same openImageDialog()/uploadPendingImage() pair — the toolbar
+// button and drag-and-drop share one code path end to end (Boundaries &
+// Constraints, spec-2-2), including the same mandatory-alt dialog. Nothing
+// here ever inserts a local blob/base64 preview into the TipTap document
+// itself; the document only ever receives the URL that comes back from the
+// server after a real upload.
+
+const imageInputRef = ref(null);
+const isImageDialogOpen = ref(false);
+const pendingImageFile = ref(null);
+const pendingImageAlt = ref('');
+const imageDialogError = ref('');
+const isUploadingImage = ref(false);
+const isDraggingImage = ref(false);
+const imageAltInputRef = ref(null);
+const imageDialogRef = ref(null);
+let imageDialogTriggerElement = null;
+// Selection to restore before inserting — set from the drop coordinates for
+// drag-and-drop so the image lands exactly where it was dropped; left null
+// for the toolbar button, which inserts at the editor's current cursor.
+let pendingInsertPos = null;
+
+function openFilePicker() {
+    imageInputRef.value?.click();
+}
+
+async function openImageDialog(file, insertPos = null) {
+    pendingImageFile.value = file;
+    pendingImageAlt.value = '';
+    pendingInsertPos = insertPos;
+    imageDialogError.value = '';
+    imageDialogTriggerElement = document.activeElement;
+    isImageDialogOpen.value = true;
+    await nextTick();
+    imageAltInputRef.value?.focus();
+}
+
+function closeImageDialog() {
+    if (isUploadingImage.value) {
+        // An upload is in flight: ignore the close request rather than
+        // letting the user believe they cancelled while it still completes
+        // underneath them.
+        return;
+    }
+
+    isImageDialogOpen.value = false;
+    pendingImageFile.value = null;
+    pendingImageAlt.value = '';
+    imageDialogError.value = '';
+    pendingInsertPos = null;
+
+    if (imageDialogTriggerElement instanceof HTMLElement) {
+        imageDialogTriggerElement.focus();
+    }
+}
+
+function onImageInputChange(event) {
+    const file = event.target.files?.[0] ?? null;
+    event.target.value = '';
+
+    if (file) {
+        openImageDialog(file);
+    }
+}
+
+function onEditorDrop(event) {
+    isDraggingImage.value = false;
+
+    const file = event.dataTransfer?.files?.[0] ?? null;
+
+    if (!file) {
+        return;
+    }
+
+    // No client-side file-type gate here — same as the file-picker path
+    // (onImageInputChange), which has none either. A non-image drop still
+    // opens the dialog and reaches the server, whose UploadEditorImageRequest
+    // validation rejects it with a message surfaced via imageDialogError,
+    // rather than the drop silently doing nothing.
+    // Places the cursor at the exact drop location before the dialog even
+    // opens, so the image lands "entre deux blocs de texte" at the drop
+    // point rather than wherever the caret happened to be last.
+    const coords = editor.value?.view.posAtCoords({ left: event.clientX, top: event.clientY });
+    openImageDialog(file, coords?.pos ?? null);
+}
+
+function uploadPendingImage() {
+    if (isUploadingImage.value) {
+        return;
+    }
+
+    const alt = pendingImageAlt.value.trim();
+
+    if (!alt) {
+        imageDialogError.value = 'Merci de renseigner un texte alternatif.';
+        return;
+    }
+
+    isUploadingImage.value = true;
+    imageDialogError.value = '';
+
+    router.post('/documents/create/images', {
+        draft_token: draftToken,
+        image: pendingImageFile.value,
+        alt,
+    }, {
+        forceFormData: true,
+        // Both keep the in-progress draft (title, editor content, category
+        // choice) exactly as the user left it — the upload is a background
+        // round-trip, never a real navigation away from the editor (Design
+        // Notes, spec-2-2).
+        preserveState: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            isImageDialogOpen.value = false;
+            pendingImageFile.value = null;
+            pendingImageAlt.value = '';
+        },
+        onError: (errors) => {
+            imageDialogError.value = errors.image ?? errors.alt ?? errors.draft_token
+                ?? 'Impossible d\'insérer cette image.';
+        },
+        onFinish: () => {
+            isUploadingImage.value = false;
+        },
+    });
+}
+
+function onImageDialogKeydown(event) {
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        closeImageDialog();
+        return;
+    }
+
+    if (event.key === 'Tab') {
+        trapImageDialogFocus(event);
+    }
+}
+
+function trapImageDialogFocus(event) {
+    const focusable = imageDialogRef.value?.querySelectorAll(
+        'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+
+    if (!focusable || focusable.length === 0) {
+        return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+    }
+}
+
+// Sole point where an uploaded image actually reaches the TipTap document —
+// fired once the upload's Inertia redirect lands back on this same page and
+// the shared flash.uploadedImage prop carries the freshly stored file's
+// url/alt (AD-13: never response()->json(), read here via preserveState
+// instead). Laravel's own flash bag ages this back out after this one
+// request, so there's nothing to clear on this end.
+const page = usePage();
+
+watch(
+    () => page.props.flash?.uploadedImage,
+    (uploadedImage) => {
+        if (!uploadedImage) {
+            return;
+        }
+
+        // The flash channel is one global slot per session, not scoped to
+        // this draft — two tabs drafting different new documents under the
+        // same session cookie would otherwise be able to cross-insert each
+        // other's uploads. draftToken ties the flashed payload back to
+        // *this* draft; anything else is silently ignored (the file itself
+        // stays safely on disk either way).
+        if (uploadedImage.draftToken !== draftToken) {
+            return;
+        }
+
+        const chain = editor.value?.chain().focus();
+
+        if (!chain) {
+            return;
+        }
+
+        if (pendingInsertPos !== null) {
+            chain.setTextSelection(pendingInsertPos);
+        }
+
+        chain.setImage({ src: uploadedImage.url, alt: uploadedImage.alt }).run();
+        pendingInsertPos = null;
+    },
+);
 
 // Save is a two-step gesture the first time a document is created (UX-DR10,
 // Design Notes spec-2-1): the category selector is optional and only
@@ -165,9 +385,36 @@ function submit() {
                     >
                         Tableau
                     </button>
+
+                    <span class="mx-1 h-5 w-px bg-neutral-300 dark:bg-neutral-600" aria-hidden="true"></span>
+
+                    <button
+                        type="button"
+                        class="rounded px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                        aria-label="Insérer une image"
+                        @click="openFilePicker"
+                    >
+                        Image
+                    </button>
+                    <input
+                        ref="imageInputRef"
+                        type="file"
+                        class="sr-only"
+                        accept="image/*"
+                        aria-label="Sélectionner une image à insérer"
+                        @change="onImageInputChange"
+                    >
                 </div>
 
-                <EditorContent :editor="editor" />
+                <div
+                    class="relative"
+                    :class="{ 'outline outline-2 outline-offset-[-2px] outline-blue-500': isDraggingImage }"
+                    @dragover.prevent="isDraggingImage = true"
+                    @dragleave.prevent="isDraggingImage = false"
+                    @drop.prevent="onEditorDrop"
+                >
+                    <EditorContent :editor="editor" />
+                </div>
 
                 <p v-if="form.errors.content_html" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
                     {{ form.errors.content_html }}
@@ -190,6 +437,66 @@ function submit() {
                 >
                     {{ form.processing ? 'Enregistrement…' : 'Enregistrer' }}
                 </button>
+            </div>
+        </div>
+
+        <div
+            v-if="isImageDialogOpen"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            @keydown="onImageDialogKeydown"
+        >
+            <div
+                ref="imageDialogRef"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="image-dialog-title"
+                class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900"
+            >
+                <h2 id="image-dialog-title" class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                    Insérer une image
+                </h2>
+                <p class="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+                    {{ pendingImageFile?.name }}
+                </p>
+
+                <div class="mt-4">
+                    <label for="image-alt-input" class="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                        Texte alternatif
+                    </label>
+                    <input
+                        id="image-alt-input"
+                        ref="imageAltInputRef"
+                        v-model="pendingImageAlt"
+                        type="text"
+                        placeholder="Décrivez cette image"
+                        class="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                        :disabled="isUploadingImage"
+                        @keydown.enter.prevent="uploadPendingImage"
+                    >
+                </div>
+
+                <p v-if="imageDialogError" class="mt-3 text-sm text-red-600 dark:text-red-400" role="alert">
+                    {{ imageDialogError }}
+                </p>
+
+                <div class="mt-6 flex justify-end gap-3">
+                    <button
+                        type="button"
+                        class="rounded-md px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                        :disabled="isUploadingImage"
+                        @click="closeImageDialog"
+                    >
+                        Annuler
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        :disabled="isUploadingImage"
+                        @click="uploadPendingImage"
+                    >
+                        {{ isUploadingImage ? 'Insertion…' : 'Insérer' }}
+                    </button>
+                </div>
             </div>
         </div>
     </AppLayout>
@@ -220,6 +527,13 @@ function submit() {
 
 :deep(.tiptap-content p) {
     margin: 0.5rem 0;
+}
+
+:deep(.tiptap-content img) {
+    max-width: 100%;
+    height: auto;
+    margin: 0.75rem 0;
+    border-radius: 0.25rem;
 }
 
 :deep(.tiptap-content ul) {

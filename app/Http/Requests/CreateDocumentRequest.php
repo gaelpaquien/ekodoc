@@ -27,6 +27,10 @@ class CreateDocumentRequest extends FormRequest
         if ($this->category_id === '') {
             $this->merge(['category_id' => null]);
         }
+
+        if ($this->draft_token === '') {
+            $this->merge(['draft_token' => null]);
+        }
     }
 
     /**
@@ -38,6 +42,10 @@ class CreateDocumentRequest extends FormRequest
             'title' => ['required', 'string', 'max:255'],
             'content_html' => ['required', 'string'],
             'category_id' => ['nullable', 'integer', Rule::exists('categories', 'id')],
+            // The editor always generates one at open (Design Notes,
+            // spec-2-2) — nullable here defensively, for a request that
+            // never went through the editor at all.
+            'draft_token' => ['nullable', 'uuid'],
         ];
     }
 
@@ -53,6 +61,7 @@ class CreateDocumentRequest extends FormRequest
             'content_html.string' => 'Contenu de document invalide.',
             'category_id.integer' => 'Catégorie invalide.',
             'category_id.exists' => 'Catégorie invalide.',
+            'draft_token.uuid' => 'Session d\'édition invalide, merci de recharger la page.',
         ];
     }
 }
