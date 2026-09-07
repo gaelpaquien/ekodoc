@@ -161,3 +161,19 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-3-edit-existing-document.md`
   summary: `DeleteDocumentTest::it_permanently_deletes_the_file__the_preview_cache_and_the_document_row__then_redirects_to_the_library` échoue de façon reproductible (`Directory [documents/1] is not empty.`), y compris isolé et sur l'état du dépôt antérieur à cette story (confirmé par un `git stash` de reproduction).
   evidence: Vérification step-04 (`php artisan test`) — échec confirmé pré-existant, sans rapport avec ce diff (spec-1-8, déjà `done`) ; surfacé incidemment par l'exécution de la suite complète exigée par la section Verification de cette story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-4-export-document-pdf.md`
+  summary: `phpunit.xml` fixe `BROWSERSHOT_CHROME_PATH` à un chemin Windows absolu — `ExportDocumentToPdfTest` échouerait uniformément sur toute machine/CI où Chrome n'est pas installé à cet exact emplacement.
+  evidence: Blind Hunter + Edge Case Hunter + Verification Gap Reviewer (step-04 review, convergent) — non bloquant pour l'usage actuel (poste de dev Windows unique, pas de pipeline CI en v1 — NFR1) ; à revisiter si le projet s'ouvre un jour à plusieurs postes/CI.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-4-export-document-pdf.md`
+  summary: Le timeout Browsershot de 60s n'est arrimé à aucun timeout du serveur web/PHP-FPM en production — un rendu lent pourrait déclencher une erreur 504 du serveur avant que le 422 explicite prévu par la spec ne se déclenche.
+  evidence: Blind Hunter (step-04 review) — même nature que le risque déjà accepté sur le timeout LibreOffice 120s de `ConvertDocumentToPreviewAction` (spec-1-3) ; non observé en pratique, à revisiter si des timeouts réels apparaissent en usage.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-4-export-document-pdf.md`
+  summary: `export-pdf.blade.php` ne définit aucune règle de pagination CSS (`@page`, `break-inside`/`page-break-*`) — un titre, une ligne de tableau ou une image peut se couper de façon disgracieuse en travers d'un saut de page sur un document long.
+  evidence: Blind Hunter (step-04 review) — NFR5 borne explicitement la garantie de fidélité "critique" aux images inline (position/rendu), pas à la pagination générale ; polish visuel hors du périmètre approuvé pour cette story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-4-export-document-pdf.md`
+  summary: Aucun test ne couvre l'export d'un document `source=created` dont `content_html` est vide/`null`.
+  evidence: Blind Hunter (step-04 review) — cas limite réel mais mineur (repli `?? ''` déjà en place dans `ExportDocumentToPdfAction`) ; ne fait pas partie de la matrice I/O approuvée par l'humain pour cette story.

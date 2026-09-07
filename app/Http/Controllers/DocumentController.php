@@ -6,6 +6,7 @@ use App\Actions\CategorizeDocumentAction;
 use App\Actions\ConvertDocumentToPreviewAction;
 use App\Actions\CreateDocumentAction;
 use App\Actions\DeleteDocumentAction;
+use App\Actions\ExportDocumentToPdfAction;
 use App\Actions\ImportDocumentAction;
 use App\Actions\UpdateDocumentAction;
 use App\Actions\UploadEditorImageAction;
@@ -13,6 +14,7 @@ use App\DataTransferObjects\CategorizeDocumentData;
 use App\DataTransferObjects\ConvertDocumentToPreviewData;
 use App\DataTransferObjects\CreateDocumentData;
 use App\DataTransferObjects\DeleteDocumentData;
+use App\DataTransferObjects\ExportDocumentToPdfData;
 use App\DataTransferObjects\ImportDocumentData;
 use App\DataTransferObjects\UpdateDocumentData;
 use App\DataTransferObjects\UploadEditorImageData;
@@ -26,9 +28,11 @@ use App\Models\Document;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -439,6 +443,38 @@ class DocumentController extends Controller
         abort_if($this->sourceMissing($document), 404);
 
         return Storage::disk('local')->download($document->file_path, basename($document->file_path));
+    }
+
+    /**
+     * Sole entry point for FR11: exports a `source=created` document to PDF
+     * via ExportDocumentToPdfAction (spec-2-4, AD-11) — refused with a
+     * `403` for an `imported` document, same guard shape as edit()
+     * (Boundaries & Constraints, spec-2-4: it already has a native PDF or
+     * goes through the Office preview above instead).
+     *
+     * Never a degraded file nor an uncaught exception: a Browsershot
+     * failure resolves to an explicit `422`, mirroring
+     * previewOfficeDocument(). Unlike that cached Office preview, the PDF
+     * here is regenerated on every call — no cache directory, no lock.
+     */
+    public function exportPdf(Document $document, ExportDocumentToPdfAction $export): HttpResponse
+    {
+        abort_unless($document->source === DocumentSource::Created, 403);
+
+        $pdf = $export(new ExportDocumentToPdfData(document: $document));
+
+        if ($pdf === null) {
+            abort(422, "Export PDF impossible pour l'instant, merci de réessayer.");
+        }
+
+        $filename = Str::slug($document->title);
+        $filename = $filename !== '' ? $filename : "document-{$document->id}";
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => "attachment; filename=\"{$filename}.pdf\"",
+            ...self::PREVIEW_RESPONSE_HEADERS,
+        ]);
     }
 
     /**

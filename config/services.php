@@ -51,4 +51,21 @@ return [
         'binary' => env('LIBREOFFICE_BINARY', 'soffice'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Browsershot (created-document PDF export)
+    |--------------------------------------------------------------------------
+    |
+    | Path to the Chrome/Chromium executable ExportDocumentToPdfAction hands
+    | to Browsershot (spec-2-4, AD-11) so it drives the system browser
+    | already installed locally instead of letting the bundled puppeteer
+    | package download its own Chromium. Left blank, Browsershot falls back
+    | to puppeteer's own resolution.
+    |
+    */
+
+    'browsershot' => [
+        'chrome_path' => env('BROWSERSHOT_CHROME_PATH'),
+    ],
+
 ];

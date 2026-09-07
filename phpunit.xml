@@ -27,6 +27,12 @@
         <env name="DB_DATABASE" value=":memory:"/>
         <env name="DB_URL" value=""/>
         <env name="LIBREOFFICE_BINARY" value="soffice"/>
+        <!-- ExportDocumentToPdfTest exercises real Browsershot/Chromium
+             conversions (AD-11) rather than faking a process the way
+             PreviewDocumentTest fakes Illuminate\Support\Facades\Process —
+             Browsershot shells out to node/puppeteer directly, which that
+             facade can't intercept. -->
+        <env name="BROWSERSHOT_CHROME_PATH" value="C:\Program Files\Google\Chrome\Application\chrome.exe"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

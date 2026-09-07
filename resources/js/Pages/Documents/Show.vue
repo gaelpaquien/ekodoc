@@ -70,12 +70,96 @@ const formattedDate = computed(() => {
 
 const previewUrl = computed(() => `/documents/${props.document.id}/preview`);
 const downloadUrl = computed(() => `/documents/${props.document.id}/download`);
+const exportPdfUrl = computed(() => `/documents/${props.document.id}/export/pdf`);
 
 // A created document (spec-2-1) has no original file on disk — `file_path`
 // is deliberately null (AD-9) — so it is never subject to the
 // file-missing/download flow below; its content lives in `content_html`
 // and renders directly instead of through the file preview/iframe path.
 const isCreated = computed(() => props.document.source === 'created');
+
+// FR11/spec-2-4: a fetch() rather than a plain <a href> so success/failure
+// can be told apart from the HTTP status (UX-DR20) — a bare <a> would hide
+// a 422 behind Laravel's default error page instead of surfacing it here.
+// The button itself always stays visible/enabled outside of an in-flight
+// request (UX-DR11) so a failed export can always be retried immediately.
+const isExportingPdf = ref(false);
+const exportPdfError = ref('');
+const showExportPdfToast = ref(false);
+let exportPdfToastTimer = null;
+
+// Same-origin request — the Content-Disposition header set by
+// DocumentController::exportPdf() is readable from fetch() without any
+// CORS exposure list, so the already-slugified filename it carries (with
+// its own `document-{id}` fallback for an empty title, Str::slug()) is
+// parsed from there rather than re-derived from props.document.title on
+// the client, which could diverge (different empty-title fallback, no
+// character sanitization).
+function filenameFromContentDisposition(header) {
+    if (!header) {
+        return null;
+    }
+
+    const match = /filename="?([^";]+)"?/i.exec(header);
+
+    return match ? match[1] : null;
+}
+
+async function exportToPdf() {
+    if (isExportingPdf.value) {
+        return;
+    }
+
+    isExportingPdf.value = true;
+    exportPdfError.value = '';
+
+    try {
+        const response = await fetch(exportPdfUrl.value, {
+            headers: { Accept: 'application/pdf' },
+        });
+
+        if (!response.ok) {
+            exportPdfError.value = 'Export PDF impossible pour l\'instant, merci de réessayer.';
+            return;
+        }
+
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const filename = filenameFromContentDisposition(response.headers.get('content-disposition'))
+            ?? `${props.document.title || 'document'}.pdf`;
+
+        // Success is delivered as a blob (not a navigation), so the
+        // download is triggered manually via a temporary anchor rather
+        // than letting the browser handle Content-Disposition itself
+        // (Design Notes, spec-2-4).
+        const link = window.document.createElement('a');
+        link.href = objectUrl;
+        link.download = filename;
+        window.document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(objectUrl);
+
+        triggerExportPdfToast();
+    } catch (error) {
+        exportPdfError.value = 'Export PDF impossible pour l\'instant, merci de réessayer.';
+    } finally {
+        isExportingPdf.value = false;
+    }
+}
+
+function triggerExportPdfToast() {
+    showExportPdfToast.value = true;
+
+    if (exportPdfToastTimer) {
+        clearTimeout(exportPdfToastTimer);
+    }
+
+    exportPdfToastTimer = setTimeout(() => {
+        showExportPdfToast.value = false;
+        exportPdfToastTimer = null;
+    }, 3000);
+}
 
 // Deletion always requires explicit confirmation (UX-DR21, AD-15) — no
 // undo/SoftDeletes, so the dialog is the only guard against an accidental
@@ -256,6 +340,10 @@ watch(() => props.document.id, refreshPreview);
 onBeforeUnmount(() => {
     requestSequence += 1;
     revokeOfficePreviewBlobUrl();
+
+    if (exportPdfToastTimer) {
+        clearTimeout(exportPdfToastTimer);
+    }
 });
 </script>
 
@@ -321,6 +409,22 @@ onBeforeUnmount(() => {
                     Modifier
                 </Link>
 
+                <!-- FR11/spec-2-4: only a created document has content_html
+                     to export — an imported document already has a native
+                     PDF or goes through the Office preview above instead.
+                     Stays visible/style primaire even while exporting or
+                     after a failed attempt (UX-DR11): only :disabled
+                     changes, so retrying never requires a page reload. -->
+                <button
+                    v-if="isCreated"
+                    type="button"
+                    class="inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    :disabled="isExportingPdf"
+                    @click="exportToPdf"
+                >
+                    {{ isExportingPdf ? 'Export en cours…' : 'Exporter en PDF' }}
+                </button>
+
                 <button
                     type="button"
                     class="inline-flex rounded-md border border-red-600 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:border-red-500 dark:text-red-500 dark:hover:bg-red-950/30"
@@ -329,6 +433,10 @@ onBeforeUnmount(() => {
                     Supprimer
                 </button>
             </div>
+
+            <p v-if="exportPdfError" class="mt-2 text-sm text-red-600 dark:text-red-400" role="alert">
+                {{ exportPdfError }}
+            </p>
 
             <div class="mt-8">
                 <!-- eslint-disable-next-line vue/no-v-html -- content authored by the same local user in the app's own WYSIWYG editor (spec-2-1); no auth boundary exists in v1 (NFR3). -->
@@ -425,6 +533,20 @@ onBeforeUnmount(() => {
                         {{ isDeleting ? 'Suppression…' : 'Supprimer' }}
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Minimal, purpose-built toast (spec-2-4 Design Notes: no
+             existing toast component in the project) — auto-dismisses via
+             triggerExportPdfToast()'s timer, never blocks interaction. -->
+        <div
+            v-if="showExportPdfToast"
+            class="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4"
+            role="status"
+            aria-live="polite"
+        >
+            <div class="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white shadow-lg dark:bg-neutral-100 dark:text-neutral-900">
+                Export PDF généré.
             </div>
         </div>
     </AppLayout>

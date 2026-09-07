@@ -34,6 +34,9 @@ Route::get('/documents/{document}/edit', [DocumentController::class, 'edit'])->n
 Route::patch('/documents/{document}', [DocumentController::class, 'update'])->name('documents.update');
 Route::get('/documents/{document}/preview', [DocumentController::class, 'preview'])->name('documents.preview');
 Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
+// PDF export of a created document (spec-2-4) — same distinct-suffix shape
+// as preview/download above, so no ordering conflict either.
+Route::get('/documents/{document}/export/pdf', [DocumentController::class, 'exportPdf'])->name('documents.export.pdf');
 Route::get('/documents/{document}/images/{filename}', [DocumentController::class, 'serveDocumentImage'])
     ->where('filename', $editorImageFilenamePattern)
     ->name('documents.images.show');
