@@ -71,6 +71,12 @@ const formattedDate = computed(() => {
 const previewUrl = computed(() => `/documents/${props.document.id}/preview`);
 const downloadUrl = computed(() => `/documents/${props.document.id}/download`);
 
+// A created document (spec-2-1) has no original file on disk — `file_path`
+// is deliberately null (AD-9) — so it is never subject to the
+// file-missing/download flow below; its content lives in `content_html`
+// and renders directly instead of through the file preview/iframe path.
+const isCreated = computed(() => props.document.source === 'created');
+
 // Deletion always requires explicit confirmation (UX-DR21, AD-15) — no
 // undo/SoftDeletes, so the dialog is the only guard against an accidental
 // destructive request. Accessibility mirrors ImportModal.vue: role="dialog",
@@ -288,14 +294,14 @@ onBeforeUnmount(() => {
 
             <div class="mt-6 flex gap-3">
                 <a
-                    v-if="!sourceMissing"
+                    v-if="!isCreated && !sourceMissing"
                     :href="downloadUrl"
                     class="inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
                 >
                     Télécharger
                 </a>
                 <button
-                    v-else
+                    v-else-if="!isCreated"
                     type="button"
                     disabled
                     class="inline-flex cursor-not-allowed rounded-md bg-neutral-300 px-4 py-2 text-sm font-medium text-neutral-500 dark:bg-neutral-800 dark:text-neutral-600"
@@ -313,8 +319,15 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="mt-8">
+                <!-- eslint-disable-next-line vue/no-v-html -- content authored by the same local user in the app's own WYSIWYG editor (spec-2-1); no auth boundary exists in v1 (NFR3). -->
                 <div
-                    v-if="sourceMissing"
+                    v-if="isCreated"
+                    class="tiptap-content min-h-[200px] rounded-md border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                    v-html="document.content_html"
+                ></div>
+
+                <div
+                    v-else-if="sourceMissing"
                     class="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
                 >
                     Fichier source introuvable ou illisible. La prévisualisation n'est pas disponible.
@@ -404,3 +417,68 @@ onBeforeUnmount(() => {
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+/* Mirrors Editor.vue's tiptap-content rules so a created document's
+   headings/lists/tables render the same way they looked while drafting. */
+:deep(.tiptap-content h1) {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0.75rem 0 0.5rem;
+}
+
+:deep(.tiptap-content h2) {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0.75rem 0 0.5rem;
+}
+
+:deep(.tiptap-content h3) {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0.75rem 0 0.5rem;
+}
+
+:deep(.tiptap-content p) {
+    margin: 0.5rem 0;
+}
+
+:deep(.tiptap-content ul) {
+    list-style: disc;
+    padding-left: 1.5rem;
+    margin: 0.5rem 0;
+}
+
+:deep(.tiptap-content ol) {
+    list-style: decimal;
+    padding-left: 1.5rem;
+    margin: 0.5rem 0;
+}
+
+:deep(.tiptap-content table) {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0.75rem 0;
+}
+
+:deep(.tiptap-content table td),
+:deep(.tiptap-content table th) {
+    border: 1px solid #d4d4d4;
+    padding: 0.375rem 0.5rem;
+}
+
+:deep(.tiptap-content table th) {
+    background-color: #f5f5f5;
+    font-weight: 600;
+    text-align: left;
+}
+
+:global(.dark) :deep(.tiptap-content table td),
+:global(.dark) :deep(.tiptap-content table th) {
+    border-color: #404040;
+}
+
+:global(.dark) :deep(.tiptap-content table th) {
+    background-color: #262626;
+}
+</style>

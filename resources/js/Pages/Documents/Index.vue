@@ -259,13 +259,21 @@ function formatDate(dateString) {
                 <h1 class="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
                     Bibliothèque de documents
                 </h1>
-                <button
-                    type="button"
-                    class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-                    @click="isImportModalOpen = true"
-                >
-                    Importer
-                </button>
+                <div class="flex items-center gap-3">
+                    <Link
+                        href="/documents/create"
+                        class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:border-blue-500 hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-neutral-700 dark:text-neutral-300"
+                    >
+                        Créer un document
+                    </Link>
+                    <button
+                        type="button"
+                        class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                        @click="isImportModalOpen = true"
+                    >
+                        Importer
+                    </button>
+                </div>
             </div>
 
             <div class="relative mb-6">

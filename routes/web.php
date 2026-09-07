@@ -6,6 +6,10 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [DocumentController::class, 'index'])->name('documents.index');
 Route::post('/documents', [DocumentController::class, 'store'])->name('documents.store');
+// Registered ahead of GET /documents/{document} — otherwise "create" would
+// be captured by that route's model binding instead of reaching create().
+Route::get('/documents/create', [DocumentController::class, 'create'])->name('documents.create');
+Route::post('/documents/create', [DocumentController::class, 'storeCreated'])->name('documents.storeCreated');
 Route::get('/documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
 Route::get('/documents/{document}/preview', [DocumentController::class, 'preview'])->name('documents.preview');
 Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');

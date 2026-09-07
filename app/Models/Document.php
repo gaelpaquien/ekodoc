@@ -19,6 +19,7 @@ class Document extends Model
         'source',
         'file_path',
         'mime_type',
+        'content_html',
         'extracted_text',
         'extraction_status',
     ];

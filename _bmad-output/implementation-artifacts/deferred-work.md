@@ -105,3 +105,27 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-7-filter-documents.md`
   summary: La correspondance type→mime est dupliquée entre `DocumentController::TYPE_MIME_MAP` (PHP) et `TYPE_OPTIONS` (Vue, `Index.vue`) sans source commune — un commentaire est le seul lien entre les deux.
   evidence: Blind Hunter (step-04 review) — même schéma que les autres duplications déjà différées sur cette base de code (formatage de date, mapping mime de prévisualisation) ; à centraliser si un troisième point de branchement type/mime apparaît.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-create-document-editor.md`
+  summary: L'enregistrement d'un document créé redirige vers la Fiche document sans afficher le texte "Enregistré." littéral prévu par la voix/ton (EXPERIENCE.md) — aucun mécanisme de flash message n'existe dans l'app pour le porter.
+  evidence: Design Notes, step-02 planning — même trou déjà noté à la Story 1.8 (pas de flash/toast après suppression). Nécessiterait d'introduire le partage de session flash côté `HandleInertiaRequests` (absent aujourd'hui), hors proportion pour une seule story ; à traiter comme un ajout transverse si une future story en a de nouveau besoin (ex. export réussi, Story 2.4/2.5).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-create-document-editor.md`
+  summary: Un second clic sur "Enregistrer" avant de quitter l'Éditeur crée un nouveau document distinct plutôt que de mettre à jour celui déjà enregistré — pas de garde contre le doublon.
+  evidence: Design Notes, step-02 planning — décision de scope délibérée : la ré-édition d'un document créé (chargement + mise à jour du même enregistrement) est le sujet de la Story 2.3, qui réutilisera le même chemin de sauvegarde.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-create-document-editor.md`
+  summary: `Show.vue` calcule `isCreated` en comparant `document.source` à la chaîne littérale `'created'` au lieu de référencer une source commune avec l'enum backend `DocumentSource`.
+  evidence: Blind Hunter (step-04 review) — même schéma que la duplication type→mime déjà différée (spec-1-7) ; à centraliser si un troisième point de comparaison sur `source` apparaît.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-create-document-editor.md`
+  summary: `Editor.vue::onSaveClick()` focus le sélecteur de catégorie via `document.getElementById('category-picker-select')`, en passant par un id DOM interne à `CategoryPicker.vue` plutôt que par son API de composant — couplage fragile si son markup change.
+  evidence: Blind Hunter (step-04 review) — fonctionne aujourd'hui, mais casserait silencieusement (perte de focus, pas d'erreur) si `CategoryPicker.vue` change son id interne.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-create-document-editor.md`
+  summary: La barre d'outils insère un tableau fixe 3×3 (`insertTable`) sans aucun contrôle pour ajouter/supprimer des lignes ou colonnes ensuite.
+  evidence: Blind Hunter (step-04 review) — FR8 ne demande que la présence de tableaux dans la barre d'outils, satisfait par l'insertion ; l'édition de structure après insertion reste un angle mort UX si un usage réel s'en plaint.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-create-document-editor.md`
+  summary: Aucun test automatisé n'observe quelle branche du template `Show.vue` s'affiche réellement pour un document créé (`isCreated` vrai/faux) — `CreateDocumentTest.php` ne vérifie que les props Inertia envoyées, pas le rendu. Une régression sur `isCreated` ferait retomber silencieusement l'affichage sur le message "fichier introuvable" sans qu'aucun test échoue.
+  evidence: Verification Gap Reviewer (step-04 review) — confirmé par recherche : aucun framework de test JS/composant n'existe dans le projet (`package.json` ne déclare ni runner ni script `test`, aucun fichier `*.spec.js`/`*.test.js` trouvé) ; fermer ce trou suppose d'introduire un outillage de test frontend (Dusk/Playwright), hors proportion pour cette seule story.

@@ -4,14 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Actions\CategorizeDocumentAction;
 use App\Actions\ConvertDocumentToPreviewAction;
+use App\Actions\CreateDocumentAction;
 use App\Actions\DeleteDocumentAction;
 use App\Actions\ImportDocumentAction;
 use App\DataTransferObjects\CategorizeDocumentData;
 use App\DataTransferObjects\ConvertDocumentToPreviewData;
+use App\DataTransferObjects\CreateDocumentData;
 use App\DataTransferObjects\DeleteDocumentData;
 use App\DataTransferObjects\ImportDocumentData;
 use App\Enums\DocumentSource;
 use App\Http\Requests\CategorizeDocumentRequest;
+use App\Http\Requests\CreateDocumentRequest;
 use App\Http\Requests\ImportDocumentRequest;
 use App\Models\Document;
 use Illuminate\Database\Eloquent\Builder;
@@ -204,6 +207,48 @@ class DocumentController extends Controller
         return to_route('documents.show', $document);
     }
 
+    /**
+     * Renders the empty WYSIWYG editor for drafting a brand-new document
+     * (FR8) — registered at `/documents/create`, ahead of the
+     * `/documents/{document}` show route, so `create` is never captured by
+     * that route's model binding.
+     */
+    public function create(): Response
+    {
+        return Inertia::render('Documents/Editor');
+    }
+
+    /**
+     * Sole entry point for saving a document authored in the editor —
+     * mirrors store()'s transaction shape exactly: CreateDocumentAction
+     * never touches `category_id` itself (Boundaries & Constraints,
+     * spec-2-1), an optional category chosen alongside the content is
+     * assigned afterwards, in the same transaction, through
+     * CategorizeDocumentAction, the sole write point for it (AD-16).
+     */
+    public function storeCreated(CreateDocumentRequest $request, CreateDocumentAction $create, CategorizeDocumentAction $categorize): RedirectResponse
+    {
+        $document = DB::transaction(function () use ($request, $create, $categorize) {
+            $document = $create(new CreateDocumentData(
+                title: $request->validated('title'),
+                contentHtml: $request->validated('content_html'),
+            ));
+
+            $categoryId = $request->validated('category_id');
+
+            if ($categoryId !== null) {
+                $categorize(new CategorizeDocumentData(
+                    document: $document,
+                    categoryId: $categoryId,
+                ));
+            }
+
+            return $document;
+        });
+
+        return to_route('documents.show', $document);
+    }
+
     public function show(Document $document): Response
     {
         $document->loadMissing('category:id,name');
@@ -214,6 +259,7 @@ class DocumentController extends Controller
                 'title' => $document->title,
                 'source' => $document->source,
                 'mime_type' => $document->mime_type,
+                'content_html' => $document->content_html,
                 'category_id' => $document->category_id,
                 'category' => $document->category,
                 'created_at' => $document->created_at,
