@@ -7,17 +7,20 @@ use App\Actions\ConvertDocumentToPreviewAction;
 use App\Actions\CreateDocumentAction;
 use App\Actions\DeleteDocumentAction;
 use App\Actions\ImportDocumentAction;
+use App\Actions\UpdateDocumentAction;
 use App\Actions\UploadEditorImageAction;
 use App\DataTransferObjects\CategorizeDocumentData;
 use App\DataTransferObjects\ConvertDocumentToPreviewData;
 use App\DataTransferObjects\CreateDocumentData;
 use App\DataTransferObjects\DeleteDocumentData;
 use App\DataTransferObjects\ImportDocumentData;
+use App\DataTransferObjects\UpdateDocumentData;
 use App\DataTransferObjects\UploadEditorImageData;
 use App\Enums\DocumentSource;
 use App\Http\Requests\CategorizeDocumentRequest;
 use App\Http\Requests\CreateDocumentRequest;
 use App\Http\Requests\ImportDocumentRequest;
+use App\Http\Requests\UpdateDocumentRequest;
 use App\Http\Requests\UploadEditorImageRequest;
 use App\Models\Document;
 use Illuminate\Database\Eloquent\Builder;
@@ -326,6 +329,51 @@ class DocumentController extends Controller
             ],
             'sourceMissing' => $this->sourceMissing($document),
         ]);
+    }
+
+    /**
+     * Reopens the WYSIWYG editor to correct a previously created document
+     * (spec-2-3) — refused for an `imported` document (Boundaries &
+     * Constraints, spec-2-3), which never had `content_html` of its own to
+     * edit. Mirrors create()'s bare Inertia::render(), just with the
+     * existing document's fields pre-loaded as a prop so Editor.vue can
+     * pre-fill the form and TipTap before allowing any input.
+     */
+    public function edit(Document $document): Response
+    {
+        abort_unless($document->source === DocumentSource::Created, 403);
+
+        return Inertia::render('Documents/Editor', [
+            'document' => [
+                'id' => $document->id,
+                'title' => $document->title,
+                'content_html' => $document->content_html,
+                'category_id' => $document->category_id,
+            ],
+        ]);
+    }
+
+    /**
+     * Sole entry point for saving changes made to a document in the editor
+     * — UpdateDocumentRequest::authorize() already closes off an
+     * `imported` document before this ever runs. Unlike storeCreated(),
+     * the transaction and the conditional CategorizeDocumentAction call
+     * both live inside UpdateDocumentAction itself (Code Map, spec-2-3),
+     * since re-categorization here is conditional on a comparison against
+     * the document's *current* `category_id` that only the Action has
+     * loaded.
+     */
+    public function update(UpdateDocumentRequest $request, Document $document, UpdateDocumentAction $update): RedirectResponse
+    {
+        $document = $update(new UpdateDocumentData(
+            document: $document,
+            title: $request->validated('title'),
+            contentHtml: $request->validated('content_html'),
+            categoryId: $request->validated('category_id'),
+            draftToken: $request->validated('draft_token'),
+        ));
+
+        return to_route('documents.show', $document);
     }
 
     /**

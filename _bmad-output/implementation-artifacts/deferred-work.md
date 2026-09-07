@@ -145,3 +145,19 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-2-insert-images-inline.md`
   summary: Aucun test ne force l'échec de `relocateDraftImages()` (ex. `Storage::move()` retournant `false`) pour vérifier que la transaction annule bien la création du `Document` et que le dossier de destination est nettoyé.
   evidence: Verification Gap Reviewer (step-04 review) — même trou déjà accepté sur la branche échec-de-stockage structurellement identique de `ImportDocumentAction::storeFile()` ; aucun pattern de mock/fake d'échec disque n'existe ailleurs dans le projet (`Storage::fake('local')` réussit toujours), introduire ce tooling est hors proportion pour cette story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-3-edit-existing-document.md`
+  summary: `Editor.vue` porte à la fois la création et l'édition ; une navigation Inertia qui réutilise cette même instance de composant sans démontage intermédiaire (ex. retour/avance navigateur à travers l'historique Inertia) ne réinitialiserait pas `draftToken`/`form`/`initialSnapshot`/l'instance TipTap depuis les nouveaux props, laissant potentiellement le contenu d'un autre document affiché.
+  evidence: Blind Hunter (step-04 review) — aucun chemin de navigation actuel dans l'app ne relie directement deux pages Editor.vue sans passer par la Bibliothèque/la Fiche document (qui démontent le composant), donc non reproductible via le parcours normal ; resterait à vérifier si l'historique navigateur (retour/avance) peut recréer ce cas via le cache de pages d'Inertia.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-3-edit-existing-document.md`
+  summary: `UpdateDocumentTest.php` ne couvre pas : un titre de plus de 255 caractères à la mise à jour, un `draft_token` invalide (non-UUID), ni le scénario "image insérée puis retirée avant enregistrement" côté édition (son équivalent existe côté création, spec-2-2).
+  evidence: Blind Hunter (step-04 review) — mêmes règles de validation que `CreateDocumentRequest` (déjà testées côté création) ; complète la matrice I/O mais n'en fait pas partie explicitement, hors du périmètre strictement approuvé pour cette story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-3-edit-existing-document.md`
+  summary: Un échec de `relocateDraftImages()` (`Storage::move()` retournant `false`) pendant une mise à jour se propage en exception non rattrapée jusqu'à une erreur générique côté client, alors que l'I/O Matrix de cette story exige un "message explicite" ; le même trou existe déjà côté création (spec-2-1/2-2) et n'a jamais été comblé.
+  evidence: Blind Hunter (step-04 review) — confirmé par lecture de `DocumentController::update()`/`storeCreated()` : aucun `catch` autour de l'appel à l'Action, aucun gestionnaire d'exception applicatif dans `app/Exceptions`. Pré-existant, pas introduit par cette story ; corriger suppose de décider d'un mécanisme de message d'erreur explicite pour toute l'app (flash d'erreur), hors proportion pour cette seule story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-3-edit-existing-document.md`
+  summary: `DeleteDocumentTest::it_permanently_deletes_the_file__the_preview_cache_and_the_document_row__then_redirects_to_the_library` échoue de façon reproductible (`Directory [documents/1] is not empty.`), y compris isolé et sur l'état du dépôt antérieur à cette story (confirmé par un `git stash` de reproduction).
+  evidence: Vérification step-04 (`php artisan test`) — échec confirmé pré-existant, sans rapport avec ce diff (spec-1-8, déjà `done`) ; surfacé incidemment par l'exécution de la suite complète exigée par la section Verification de cette story.

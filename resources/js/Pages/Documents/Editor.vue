@@ -7,34 +7,100 @@ import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
 import TableRow from '@tiptap/extension-table-row';
 import Image from '@tiptap/extension-image';
-import { nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import CategoryPicker from '@/Components/CategoryPicker.vue';
 
+// Present only when reopening a previously created document to correct it
+// (spec-2-3) — absent (null) on a brand-new draft, in which case every
+// branch below falls back to the create-mode behaviour that already
+// shipped in Story 2.1/2.2.
+const props = defineProps({
+    document: {
+        type: Object,
+        default: null,
+    },
+});
+
 // Generated once, client-side, the moment the editor opens (Design Notes,
-// spec-2-2) — keys every image this session uploads before the document
-// itself has an id, and travels along with the final save so
-// CreateDocumentAction knows which tmp/{token} directory to relocate.
-// crypto.randomUUID() needs no server round-trip, so the very first image
-// can upload immediately.
+// spec-2-2) — keys every image this session uploads before it's relocated
+// into the document's own directory, and travels along with the final save
+// so Create/UpdateDocumentAction know which tmp/{token} directory to
+// relocate. crypto.randomUUID() needs no server round-trip, so the very
+// first image can upload immediately — needed just the same whether this
+// session is drafting a new document or editing an existing one, since an
+// image inserted mid-edit still has no permanent home until "Enregistrer".
 const draftToken = crypto.randomUUID();
 
 const form = useForm({
-    title: '',
-    content_html: '',
-    category_id: null,
+    title: props.document?.title ?? '',
+    content_html: props.document?.content_html ?? '',
+    category_id: props.document?.category_id ?? null,
     draft_token: draftToken,
 });
 
 const titleInputRef = ref(null);
 
-// Whether the category selector has been revealed yet — starts hidden on a
-// brand-new document (UX-DR10, Design Notes spec-2-1) and, once shown,
-// stays shown for the rest of the session.
-const showCategoryPicker = ref(false);
+// Whether the category selector has been revealed yet. On a brand-new
+// document it starts hidden (UX-DR10, Design Notes spec-2-1) behind a
+// two-step "Enregistrer" gesture; in edit mode there is no such gesture to
+// reserve — the category the document already has is shown immediately
+// (Code Map, spec-2-3). Once shown, stays shown for the rest of the session.
+const showCategoryPicker = ref(!!props.document);
+
+// Tracks the editor's current HTML outside of TipTap itself so it can be
+// compared reactively against the snapshot below — TipTap's own state
+// isn't reactive to Vue on its own.
+const currentContentHtml = ref(form.content_html);
+
+// Set once, right after the editor mounts (onCreate below), to the
+// title/content/category the form actually started from — comparing
+// against a live loaded state rather than a mutation counter avoids a
+// false "dirty" positive from e.g. a click into the editor that changes
+// nothing (Design Notes, spec-2-3). Null until then, during which isDirty
+// stays false: nothing typed yet is nothing to lose.
+const initialSnapshot = ref(null);
+
+function snapshotCurrentState() {
+    return {
+        title: form.title,
+        contentHtml: currentContentHtml.value,
+        categoryId: form.category_id,
+    };
+}
+
+// Discreet "unsaved changes" indicator on the Save button (Boundaries &
+// Constraints, spec-2-3) — compares the live title/content/category
+// against the snapshot taken when the editor became ready, not an edit
+// counter, so an edit that's undone back to the original state doesn't
+// stay flagged dirty forever.
+const isDirty = computed(() => {
+    if (!initialSnapshot.value) {
+        return false;
+    }
+
+    const current = snapshotCurrentState();
+
+    return current.title !== initialSnapshot.value.title
+        || current.contentHtml !== initialSnapshot.value.contentHtml
+        || current.categoryId !== initialSnapshot.value.categoryId;
+});
+
+// Existing content must be loaded into TipTap before typing is allowed
+// (Boundaries & Constraints, spec-2-3) — `editable` starts false only when
+// reopening a document; a brand-new draft has nothing to wait for and stays
+// editable from the very first render, unchanged from Story 2.1. Flipped
+// back on, and the loading indicator cleared, in onCreate below — in
+// practice `useEditor()` constructs the TipTap instance (and loads
+// `content`) synchronously, so this resolves before the very first render;
+// the flag is kept anyway rather than hard-coded to false, since a
+// same-tick resolution is an implementation detail of TipTap's Vue
+// wrapper, not a guarantee this code should assume holds forever.
+const isLoadingContent = ref(!!props.document);
 
 const editor = useEditor({
-    content: '',
+    content: form.content_html,
+    editable: !props.document,
     extensions: [
         StarterKit,
         // `resizable: false` — column/row resizing isn't part of this
@@ -56,6 +122,19 @@ const editor = useEditor({
             'aria-label': 'Contenu du document',
         },
     },
+    onCreate: ({ editor: mountedEditor }) => {
+        currentContentHtml.value = mountedEditor.getHTML();
+        initialSnapshot.value = snapshotCurrentState();
+
+        if (!mountedEditor.isEditable) {
+            mountedEditor.setEditable(true);
+        }
+
+        isLoadingContent.value = false;
+    },
+    onUpdate: ({ editor: updatedEditor }) => {
+        currentContentHtml.value = updatedEditor.getHTML();
+    },
 });
 
 // Focus lands on the title, not the editor body — matches the Import
@@ -63,6 +142,47 @@ const editor = useEditor({
 // document is what it's called.
 onMounted(() => {
     titleInputRef.value?.focus();
+    window.addEventListener('beforeunload', onBeforeUnload);
+});
+
+// --- Garde contre la perte de modifications non enregistrées (spec-2-3) ----
+//
+// Two exit paths exist: an Inertia navigation (a <Link>, a browser
+// back/forward the client intercepts, or this very page's own save/upload
+// requests — router.post()/form.patch() are visits too) and closing the
+// tab/browser outright, which Inertia's router never sees. Both are guarded
+// the same way — confirm if isDirty, otherwise let it through — but the
+// save and image-upload requests below are this component's own doing, not
+// the user trying to leave, so `programmaticNavigation` lets them bypass
+// the confirmation entirely rather than asking the user to confirm leaving
+// a page they never asked to leave.
+let programmaticNavigation = false;
+
+const unregisterNavigationGuard = router.on('before', (event) => {
+    if (programmaticNavigation || !isDirty.value) {
+        return;
+    }
+
+    if (!window.confirm('Des modifications non enregistrées seront perdues si vous quittez cette page. Voulez-vous continuer ?')) {
+        event.preventDefault();
+    }
+});
+
+function onBeforeUnload(event) {
+    if (!isDirty.value) {
+        return;
+    }
+
+    // Both are required for the confirmation prompt to appear across
+    // browsers — the string itself is never actually shown (browsers use
+    // their own generic wording), but a value must still be set.
+    event.preventDefault();
+    event.returnValue = '';
+}
+
+onBeforeUnmount(() => {
+    window.removeEventListener('beforeunload', onBeforeUnload);
+    unregisterNavigationGuard();
 });
 
 function insertTable() {
@@ -177,6 +297,14 @@ function uploadPendingImage() {
     isUploadingImage.value = true;
     imageDialogError.value = '';
 
+    // A background round-trip, never a real navigation away from the
+    // editor (Design Notes, spec-2-2) — bypasses the unsaved-changes guard
+    // above for the same reason (it's this component's own request, not
+    // the user trying to leave). The upload endpoint itself is shared
+    // as-is between create and edit (Boundaries & Constraints, spec-2-3) —
+    // draftToken alone keys where the file lands and, later, which prefix
+    // the sanitizer allows it under.
+    programmaticNavigation = true;
     router.post('/documents/create/images', {
         draft_token: draftToken,
         image: pendingImageFile.value,
@@ -202,6 +330,7 @@ function uploadPendingImage() {
             isUploadingImage.value = false;
         },
     });
+    programmaticNavigation = false;
 }
 
 function onImageDialogKeydown(event) {
@@ -296,15 +425,37 @@ async function onSaveClick() {
 }
 
 function submit() {
-    form.content_html = editor.value?.getHTML() ?? '';
+    form.content_html = editor.value?.getHTML() ?? currentContentHtml.value;
 
-    form.post('/documents/create', {
+    const options = {
+        onSuccess: () => {
+            // The save succeeded and content_html/category_id now match
+            // what's persisted — re-baseline so isDirty drops back to
+            // false rather than staying stuck true from the comparison
+            // above (relevant mainly if the redirect result is ever
+            // rendered as this same component instance).
+            initialSnapshot.value = snapshotCurrentState();
+        },
         onError: () => {
             // Validation errors (e.g. an empty title) surface inline via
             // form.errors below — the drafted content and category choice
             // are left untouched so the user can fix the title and retry.
         },
-    });
+    };
+
+    // This is the editor's own intentional save request, not the user
+    // trying to leave — bypasses the unsaved-changes navigation guard
+    // above rather than asking them to confirm leaving the very page they
+    // asked to save.
+    programmaticNavigation = true;
+
+    if (props.document) {
+        form.patch(`/documents/${props.document.id}`, options);
+    } else {
+        form.post('/documents/create', options);
+    }
+
+    programmaticNavigation = false;
 }
 </script>
 
@@ -406,7 +557,14 @@ function submit() {
                     >
                 </div>
 
+                <p
+                    v-if="isLoadingContent"
+                    class="rounded-b-md border border-t-0 border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                >
+                    Chargement du contenu…
+                </p>
                 <div
+                    v-else
                     class="relative"
                     :class="{ 'outline outline-2 outline-offset-[-2px] outline-blue-500': isDraggingImage }"
                     @dragover.prevent="isDraggingImage = true"
@@ -429,14 +587,27 @@ function submit() {
             </div>
 
             <div class="mt-6 flex items-center gap-3">
-                <button
-                    type="button"
-                    class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
-                    :disabled="form.processing"
-                    @click="onSaveClick"
-                >
-                    {{ form.processing ? 'Enregistrement…' : 'Enregistrer' }}
-                </button>
+                <span class="relative inline-flex">
+                    <button
+                        type="button"
+                        class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        :disabled="form.processing"
+                        @click="onSaveClick"
+                    >
+                        {{ form.processing ? 'Enregistrement…' : 'Enregistrer' }}
+                    </button>
+                    <!-- Discreet "unsaved changes" pastille (Boundaries & Constraints,
+                         spec-2-3) — decorative only, the adjacent text carries the
+                         same information for assistive tech. -->
+                    <span
+                        v-if="isDirty"
+                        class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-white dark:ring-neutral-950"
+                        aria-hidden="true"
+                    ></span>
+                </span>
+                <span v-if="isDirty" class="text-sm text-neutral-500 dark:text-neutral-400">
+                    Modifications non enregistrées
+                </span>
             </div>
         </div>
 

@@ -27,6 +27,11 @@ Route::get('/documents/editor-images/tmp/{token}/{filename}', [DocumentControlle
     ->where('filename', $editorImageFilenamePattern)
     ->name('documents.editorImages.tmp');
 Route::get('/documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
+// Editing a previously created document (spec-2-3) — same distinct-suffix
+// shape as preview/download/images below, so no ordering conflict with the
+// bare GET/PATCH /documents/{document} routes on either side of it.
+Route::get('/documents/{document}/edit', [DocumentController::class, 'edit'])->name('documents.edit');
+Route::patch('/documents/{document}', [DocumentController::class, 'update'])->name('documents.update');
 Route::get('/documents/{document}/preview', [DocumentController::class, 'preview'])->name('documents.preview');
 Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
 Route::get('/documents/{document}/images/{filename}', [DocumentController::class, 'serveDocumentImage'])

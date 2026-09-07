@@ -309,6 +309,18 @@ onBeforeUnmount(() => {
                     Télécharger
                 </button>
 
+                <!-- Only a document authored in the editor has content_html
+                     to reopen and correct (Boundaries & Constraints,
+                     spec-2-3) — an imported document is never routed
+                     through this link. -->
+                <Link
+                    v-if="isCreated"
+                    :href="`/documents/${document.id}/edit`"
+                    class="inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                >
+                    Modifier
+                </Link>
+
                 <button
                     type="button"
                     class="inline-flex rounded-md border border-red-600 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:border-red-500 dark:text-red-500 dark:hover:bg-red-950/30"
