@@ -71,6 +71,7 @@ const formattedDate = computed(() => {
 const previewUrl = computed(() => `/documents/${props.document.id}/preview`);
 const downloadUrl = computed(() => `/documents/${props.document.id}/download`);
 const exportPdfUrl = computed(() => `/documents/${props.document.id}/export/pdf`);
+const exportWordUrl = computed(() => `/documents/${props.document.id}/export/word`);
 
 // A created document (spec-2-1) has no original file on disk — `file_path`
 // is deliberately null (AD-9) — so it is never subject to the
@@ -158,6 +159,69 @@ function triggerExportPdfToast() {
     exportPdfToastTimer = setTimeout(() => {
         showExportPdfToast.value = false;
         exportPdfToastTimer = null;
+    }, 3000);
+}
+
+// FR12/spec-2-5: mirrors exportToPdf() exactly, same fetch/blob-download/
+// toast shape, just against the Word export route and its own
+// isExportingWord/exportWordError/showExportWordToast refs (Code Map,
+// spec-2-5) — kept as a separate function/state trio rather than
+// parameterizing exportToPdf() itself, so a PDF export in flight never
+// disables/conflicts with a concurrent Word export or vice versa.
+const isExportingWord = ref(false);
+const exportWordError = ref('');
+const showExportWordToast = ref(false);
+let exportWordToastTimer = null;
+
+async function exportToWord() {
+    if (isExportingWord.value) {
+        return;
+    }
+
+    isExportingWord.value = true;
+    exportWordError.value = '';
+
+    try {
+        const response = await fetch(exportWordUrl.value, {
+            headers: { Accept: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
+        });
+
+        if (!response.ok) {
+            exportWordError.value = 'Export Word impossible pour l\'instant, merci de réessayer.';
+            return;
+        }
+
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const filename = filenameFromContentDisposition(response.headers.get('content-disposition'))
+            ?? `${props.document.title || 'document'}.docx`;
+
+        const link = window.document.createElement('a');
+        link.href = objectUrl;
+        link.download = filename;
+        window.document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(objectUrl);
+
+        triggerExportWordToast();
+    } catch (error) {
+        exportWordError.value = 'Export Word impossible pour l\'instant, merci de réessayer.';
+    } finally {
+        isExportingWord.value = false;
+    }
+}
+
+function triggerExportWordToast() {
+    showExportWordToast.value = true;
+
+    if (exportWordToastTimer) {
+        clearTimeout(exportWordToastTimer);
+    }
+
+    exportWordToastTimer = setTimeout(() => {
+        showExportWordToast.value = false;
+        exportWordToastTimer = null;
     }, 3000);
 }
 
@@ -344,6 +408,10 @@ onBeforeUnmount(() => {
     if (exportPdfToastTimer) {
         clearTimeout(exportPdfToastTimer);
     }
+
+    if (exportWordToastTimer) {
+        clearTimeout(exportWordToastTimer);
+    }
 });
 </script>
 
@@ -425,6 +493,21 @@ onBeforeUnmount(() => {
                     {{ isExportingPdf ? 'Export en cours…' : 'Exporter en PDF' }}
                 </button>
 
+                <!-- FR12/spec-2-5: same v-if as the PDF export button above
+                     (only a created document has content_html to export) —
+                     style secondaire (bordered, not filled) to sit next to
+                     it (UX-DR11), same disabled-only-while-exporting shape
+                     so retrying never requires a page reload. -->
+                <button
+                    v-if="isCreated"
+                    type="button"
+                    class="inline-flex rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:border-blue-500 hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300"
+                    :disabled="isExportingWord"
+                    @click="exportToWord"
+                >
+                    {{ isExportingWord ? 'Export en cours…' : 'Exporter en Word' }}
+                </button>
+
                 <button
                     type="button"
                     class="inline-flex rounded-md border border-red-600 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:border-red-500 dark:text-red-500 dark:hover:bg-red-950/30"
@@ -436,6 +519,9 @@ onBeforeUnmount(() => {
 
             <p v-if="exportPdfError" class="mt-2 text-sm text-red-600 dark:text-red-400" role="alert">
                 {{ exportPdfError }}
+            </p>
+            <p v-if="exportWordError" class="mt-2 text-sm text-red-600 dark:text-red-400" role="alert">
+                {{ exportWordError }}
             </p>
 
             <div class="mt-8">
@@ -536,17 +622,30 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
-        <!-- Minimal, purpose-built toast (spec-2-4 Design Notes: no
-             existing toast component in the project) — auto-dismisses via
-             triggerExportPdfToast()'s timer, never blocks interaction. -->
-        <div
-            v-if="showExportPdfToast"
-            class="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4"
-            role="status"
-            aria-live="polite"
-        >
-            <div class="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white shadow-lg dark:bg-neutral-100 dark:text-neutral-900">
+        <!-- Minimal, purpose-built toasts (spec-2-4 Design Notes: no
+             existing toast component in the project) — each auto-dismisses
+             via its own trigger*Toast()'s timer, never blocks interaction.
+             Both share this one fixed flex-column container (rather than
+             each rendering its own `fixed inset-x-0 bottom-4`) so a PDF
+             export and a Word export triggered within the same 3s window
+             stack one above the other instead of overlapping. -->
+        <div class="fixed inset-x-0 bottom-4 z-40 flex flex-col items-center gap-2 px-4">
+            <div
+                v-if="showExportPdfToast"
+                role="status"
+                aria-live="polite"
+                class="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white shadow-lg dark:bg-neutral-100 dark:text-neutral-900"
+            >
                 Export PDF généré.
+            </div>
+
+            <div
+                v-if="showExportWordToast"
+                role="status"
+                aria-live="polite"
+                class="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white shadow-lg dark:bg-neutral-100 dark:text-neutral-900"
+            >
+                Export Word généré.
             </div>
         </div>
     </AppLayout>

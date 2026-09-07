@@ -7,6 +7,7 @@ use App\Actions\ConvertDocumentToPreviewAction;
 use App\Actions\CreateDocumentAction;
 use App\Actions\DeleteDocumentAction;
 use App\Actions\ExportDocumentToPdfAction;
+use App\Actions\ExportDocumentToWordAction;
 use App\Actions\ImportDocumentAction;
 use App\Actions\UpdateDocumentAction;
 use App\Actions\UploadEditorImageAction;
@@ -15,6 +16,7 @@ use App\DataTransferObjects\ConvertDocumentToPreviewData;
 use App\DataTransferObjects\CreateDocumentData;
 use App\DataTransferObjects\DeleteDocumentData;
 use App\DataTransferObjects\ExportDocumentToPdfData;
+use App\DataTransferObjects\ExportDocumentToWordData;
 use App\DataTransferObjects\ImportDocumentData;
 use App\DataTransferObjects\UpdateDocumentData;
 use App\DataTransferObjects\UploadEditorImageData;
@@ -473,6 +475,37 @@ class DocumentController extends Controller
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => "attachment; filename=\"{$filename}.pdf\"",
+            ...self::PREVIEW_RESPONSE_HEADERS,
+        ]);
+    }
+
+    /**
+     * Sole entry point for FR12: exports a `source=created` document to
+     * `.docx` via ExportDocumentToWordAction (spec-2-5, AD-12) — same `403`
+     * guard for an `imported` document as exportPdf() (Boundaries &
+     * Constraints, spec-2-5: it already keeps its own original file).
+     *
+     * Never a degraded file nor an uncaught exception: a PhpWord conversion
+     * failure resolves to an explicit `422`, mirroring exportPdf(). The
+     * `.docx` here is regenerated on every call too — no cache directory,
+     * no lock.
+     */
+    public function exportWord(Document $document, ExportDocumentToWordAction $export): HttpResponse
+    {
+        abort_unless($document->source === DocumentSource::Created, 403);
+
+        $docx = $export(new ExportDocumentToWordData(document: $document));
+
+        if ($docx === null) {
+            abort(422, "Export Word impossible pour l'instant, merci de réessayer.");
+        }
+
+        $filename = Str::slug($document->title);
+        $filename = $filename !== '' ? $filename : "document-{$document->id}";
+
+        return response($docx, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'Content-Disposition' => "attachment; filename=\"{$filename}.docx\"",
             ...self::PREVIEW_RESPONSE_HEADERS,
         ]);
     }

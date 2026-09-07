@@ -177,3 +177,23 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-4-export-document-pdf.md`
   summary: Aucun test ne couvre l'export d'un document `source=created` dont `content_html` est vide/`null`.
   evidence: Blind Hunter (step-04 review) — cas limite réel mais mineur (repli `?? ''` déjà en place dans `ExportDocumentToPdfAction`) ; ne fait pas partie de la matrice I/O approuvée par l'humain pour cette story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-5-export-document-word.md`
+  summary: `ExportDocumentToPdfAction::resolveImageSources()` et `ExportDocumentToWordAction::resolveImageSources()` sont deux implémentations quasi-jumelles (même scan regex des `<img src>`, substitution différente : data URI vs. chemin disque vs. suppression de balise) au lieu de partager un utilitaire commun de résolution d'images.
+  evidence: Blind Hunter (step-04 review) — mirroring délibéré demandé par la spec (Code Map) plutôt qu'un défaut ; à factoriser si un troisième format d'export apparaît un jour, prématuré pour deux occurrences seulement.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-5-export-document-word.md`
+  summary: Quand une image référencée dans `content_html` est absente du disque, l'export Word la retire silencieusement et affiche quand même le toast de succès standard ("Export Word généré.") — l'utilisateur n'a aucun signal que le `.docx` téléchargé contient moins de contenu que le document source.
+  evidence: Blind Hunter (step-04 review) — comportement conforme à la matrice I/O approuvée dans la spec (best-effort, pas de blocage) ; amélioration UX possible (toast différencié type "Export Word généré (1 image manquante)") si ce cas s'avère fréquent en usage réel.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-5-export-document-word.md`
+  summary: `ExportDocumentToWordAction::resolveImageSources()` construit le chemin disque directement à partir du nom de fichier capturé par la regex, sans le valider contre un format attendu (ex. UUID), avant l'appel à `Storage::disk('local')->exists()`/`->path()` — repose entièrement sur la désinfection en amont (`SanitizesDocumentContent`) plutôt que de se défendre elle-même contre un `src` malformé/de type traversée de chemin.
+  evidence: Blind Hunter (step-04 review) — même schéma déjà présent dans `ExportDocumentToPdfAction::resolveImageSources()` (spec-2-4, déjà `done`) ; impact limité en usage local mono-utilisateur (NFR3, pas d'auth), à durcir si l'app s'ouvre un jour à des entrées non maîtrisées.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-5-export-document-word.md`
+  summary: Un `content_html` très volumineux (beaucoup d'images/de contenu) pourrait épuiser la mémoire ou le temps d'exécution PHP pendant `Html::addHtml()`/`writer->save()`, provoquant une erreur fatale 500 au lieu du `422` explicite prévu par la spec.
+  evidence: Edge Case Hunter (step-04 review) — même nature que les limites `memory_limit` déjà différées pour l'extraction de texte (spec-1-1) ; nécessiterait des garde-fous d'infrastructure (limite de taille, `memory_limit` dédié), hors proportion pour cette story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-5-export-document-word.md`
+  summary: `ExportDocumentToWordTest.php` appelle `createDocumentForExport()`/`uploadDraftImageForExport()` sans les définir — ces fonctions globales ne sont déclarées que dans `ExportDocumentToPdfTest.php` (spec-2-4) ; fonctionne aujourd'hui grâce au chargement de répertoire de Pest/PHPUnit, mais serait fragile si les fichiers de test étaient un jour exécutés en isolation stricte par chemin plutôt que par filtre, ou parallélisés.
+  evidence: Verification Gap Reviewer (step-04 review) — vérifié empiriquement non bloquant pour la commande de vérification réellement utilisée (`--filter=`, qui charge tout le répertoire) ; à corriger en extrayant ces helpers vers un fichier de support de test partagé si un outillage d'exécution par fichier isolé est introduit un jour.

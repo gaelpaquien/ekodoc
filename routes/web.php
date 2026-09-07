@@ -37,6 +37,9 @@ Route::get('/documents/{document}/download', [DocumentController::class, 'downlo
 // PDF export of a created document (spec-2-4) — same distinct-suffix shape
 // as preview/download above, so no ordering conflict either.
 Route::get('/documents/{document}/export/pdf', [DocumentController::class, 'exportPdf'])->name('documents.export.pdf');
+// Word export of a created document (spec-2-5) — same distinct-suffix shape
+// as the PDF export above, so no ordering conflict either.
+Route::get('/documents/{document}/export/word', [DocumentController::class, 'exportWord'])->name('documents.export.word');
 Route::get('/documents/{document}/images/{filename}', [DocumentController::class, 'serveDocumentImage'])
     ->where('filename', $editorImageFilenamePattern)
     ->name('documents.images.show');
