@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-08-2026 08:49
-last_updated: 09-08-2026 08:49
+last_updated: 09-08-2026 09:06
 project: ekodoc
 project_key: NOKEY
 tracking_system: file-system
@@ -44,7 +44,7 @@ development_status:
   1-6-rechercher-un-document-par-son-contenu: done
   1-7-filtrer-les-documents-par-catégorie-et-par-type: done
   1-8-supprimer-un-document: done
-  epic-1-retrospective: optional
+  epic-1-retrospective: done
 
   epic-2: done
   2-1-créer-et-enregistrer-un-document-dans-l-éditeur-wysiwyg: done
@@ -53,3 +53,33 @@ development_status:
   2-4-exporter-un-document-créé-en-pdf: done
   2-5-exporter-un-document-créé-en-word: done
   epic-2-retrospective: optional
+action_items:
+  - id: "epic-1-retro-item-1-outiller-les-tests-js-vitest-vue-test-ut"
+    epic: 1
+    action: "Outiller les tests JS (Vitest + @vue/test-utils) pour couvrir DocumentTypeBadge.vue,
+      CategoryPicker.vue, la logique de recherche/filtrage de Index.vue et le piège
+      de focus de Show.vue"
+    owner: "prochaine session frontend"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"
+  - id: "epic-1-retro-item-2-corriger-trapfocus-dans-importmodal-vue"
+    epic: 1
+    action: "Corriger trapFocus() dans ImportModal.vue pour exclure les éléments disabled
+      (meme correctif que Show.vue : button:not([disabled]))"
+    owner: "prochaine session touchant ImportModal.vue"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"
+  - id: "epic-1-retro-item-3-centraliser-le-mapping-mime-type-format"
+    epic: 1
+    action: "Centraliser le mapping mime-type/format duplique entre DocumentController::previewFormat(),
+      ExtractDocumentTextJob::formatFromMimeType() et DocumentController::TYPE_MIME_MAP"
+    owner: "a planifier - decision architecture requise"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"
+  - id: "epic-1-retro-item-4-lancer-bmad-sprint-planning-avant-de-dem"
+    epic: 1
+    action: "Lancer bmad-sprint-planning avant de demarrer le prochain epic plutot
+      quapres coup"
+    owner: "Gael"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"
