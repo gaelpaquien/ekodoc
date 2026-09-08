@@ -27,6 +27,7 @@ use App\Http\Requests\ImportDocumentRequest;
 use App\Http\Requests\UpdateDocumentRequest;
 use App\Http\Requests\UploadEditorImageRequest;
 use App\Models\Document;
+use App\Support\DocumentMimeTypes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -42,18 +43,6 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class DocumentController extends Controller
 {
     private const PREVIEW_DIRECTORY = 'previews';
-
-    /**
-     * type[]-filter value => matching `mime_type`, colocated with the
-     * type-filter parsing/application below (Design Notes, spec-1-7).
-     * `created` is deliberately absent — it filters on `source`, not a
-     * mime type, and is handled separately in applyFilters().
-     */
-    private const TYPE_MIME_MAP = [
-        'pdf' => 'application/pdf',
-        'word' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'excel' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    ];
 
     /**
      * User-uploaded content is streamed inline — into a preview iframe, or
@@ -125,7 +114,7 @@ class DocumentController extends Controller
         }
 
         if ($types !== []) {
-            $mimeTypes = array_values(array_intersect_key(self::TYPE_MIME_MAP, array_flip($types)));
+            $mimeTypes = array_values(array_intersect_key(DocumentMimeTypes::TYPE_TO_MIME, array_flip($types)));
             $includesCreated = in_array('created', $types, true);
 
             $query->where(function (Builder $typeQuery) use ($mimeTypes, $includesCreated) {
@@ -181,7 +170,7 @@ class DocumentController extends Controller
             return [];
         }
 
-        $allowedTypes = [...array_keys(self::TYPE_MIME_MAP), 'created'];
+        $allowedTypes = [...array_keys(DocumentMimeTypes::TYPE_TO_MIME), 'created'];
         $stringValues = array_filter($raw, 'is_string');
 
         return array_values(array_intersect(array_unique($stringValues), $allowedTypes));
@@ -555,17 +544,15 @@ class DocumentController extends Controller
     }
 
     /**
-     * Mirrors ExtractDocumentTextJob::formatFromMimeType() — the same mime
-     * routing used for text extraction drives which preview strategy
-     * applies.
+     * Delegates to DocumentMimeTypes::formatFromMime() — the mime-type
+     * mapping itself no longer lives in this controller (moved to
+     * `App\Support\DocumentMimeTypes`, Epic 1/2 retrospectives action item
+     * 3); the same mapping drives both this preview routing and text
+     * extraction (ExtractDocumentTextJob). Method kept (rather than
+     * inlining the call at its single caller) so that caller never changes.
      */
     private function previewFormat(?string $mimeType): ?string
     {
-        return match ($mimeType) {
-            'application/pdf' => 'pdf',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
-            default => null,
-        };
+        return DocumentMimeTypes::formatFromMime($mimeType);
     }
 }

@@ -112,7 +112,7 @@ function onKeydown(event) {
 
 function trapFocus(event) {
     const focusable = dialogRef.value?.querySelectorAll(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
     );
 
     if (!focusable || focusable.length === 0) {

@@ -6,6 +6,19 @@ use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
     Storage::fake('local');
+
+    // Defensive cleanup against the intermittent full-suite flake documented
+    // in epic-2-retro-2026-09-08.md: a leftover empty `documents/{id}/images/`
+    // directory from another Epic 2 test file (CreateDocumentTest,
+    // UpdateDocumentTest, UploadEditorImageTest, ExportDocumentToPdfTest,
+    // ExportDocumentToWordTest — all write there too) has been observed
+    // surviving `Storage::fake('local')`'s own reset on this environment,
+    // making `assertDirectoryEmpty()` below fail nondeterministically. Only
+    // ever acts on the disk instance `Storage::fake('local')` just created
+    // on the line above — never the real `local` disk, and only within this
+    // one test file (Design Notes, spec-corrections-post-retrospective).
+    Storage::disk('local')->deleteDirectory('documents');
+    Storage::disk('local')->deleteDirectory('previews');
 });
 
 function deleteFixtureContents(string $name): string

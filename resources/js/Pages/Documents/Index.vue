@@ -24,18 +24,20 @@ const props = defineProps({
     },
 });
 
-// Fixed set of four types (Boundaries & Constraints, spec-1-7: no fifth
-// type) — value matches the `type[]` query value the server recognizes
-// (DocumentController::TYPE_MIME_MAP + `created`).
-const TYPE_OPTIONS = [
-    { value: 'pdf', label: 'PDF' },
-    { value: 'word', label: 'Word' },
-    { value: 'excel', label: 'Excel' },
-    { value: 'created', label: 'Créé' },
-];
-
 const page = usePage();
 const categories = computed(() => page.props.categories ?? []);
+
+// Fixed set of four types (Boundaries & Constraints, spec-1-7: no fifth
+// type) — value matches the `type[]` query value the server recognizes
+// (DocumentMimeTypes::TYPE_TO_MIME + `created`). The pdf/word/excel entries
+// come from the shared `documentTypeOptions` Inertia prop (single source of
+// truth, Epic 1/2 retrospectives action item 3); `created` stays a local
+// entry since it filters on `source`, not a mime type, and has no
+// server-side mime-type counterpart to derive it from.
+const TYPE_OPTIONS = computed(() => [
+    ...(page.props.documentTypeOptions ?? []),
+    { value: 'created', label: 'Créé' },
+]);
 
 const isImportModalOpen = ref(false);
 const searchTerm = ref(props.search);
@@ -192,7 +194,7 @@ function categoryName(categoryId) {
 }
 
 function typeLabel(type) {
-    return TYPE_OPTIONS.find((option) => option.value === type)?.label ?? type;
+    return TYPE_OPTIONS.value.find((option) => option.value === type)?.label ?? type;
 }
 
 // `/` focuses the search bar unless a field is already active, so the

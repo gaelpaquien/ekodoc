@@ -175,6 +175,24 @@ it('exposes categories in the shared Inertia prop on the library index', functio
     );
 });
 
+// Regression guard (spec-corrections-post-retrospective, adversarial review
+// item 4): DocumentTypeBadge/HandleInertiaRequests/Index.vue all derive from
+// DocumentMimeTypes::TYPE_TO_MIME/TYPE_LABELS now — without this assertion,
+// the two constants desynchronizing (or the shared prop disappearing
+// entirely) would silently drop the PDF/Word/Excel type filters from the
+// library UI with no test failing anywhere.
+it('exposes documentTypeOptions in the shared Inertia prop on the library index', function () {
+    $response = test()->get('/');
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('documentTypeOptions', [
+            ['value' => 'pdf', 'label' => 'PDF'],
+            ['value' => 'word', 'label' => 'Word'],
+            ['value' => 'excel', 'label' => 'Excel'],
+        ])
+    );
+});
+
 it('shows the assigned category on the library card', function () {
     $category = Category::factory()->create(['name' => 'Contrats']);
     $document = Document::factory()->create(['category_id' => $category->id]);

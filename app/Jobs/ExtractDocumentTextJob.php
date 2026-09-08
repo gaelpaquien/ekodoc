@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Enums\ExtractionStatus;
 use App\Models\Document;
+use App\Support\DocumentMimeTypes;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -121,12 +122,7 @@ class ExtractDocumentTextJob implements ShouldQueue
 
     private function formatFromMimeType(?string $mimeType): ?string
     {
-        return match ($mimeType) {
-            'application/pdf' => 'pdf',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
-            default => null,
-        };
+        return DocumentMimeTypes::formatFromMime($mimeType);
     }
 
     private function extractFromWord(string $absolutePath): string

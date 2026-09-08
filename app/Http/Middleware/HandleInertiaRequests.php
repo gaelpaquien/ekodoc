@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Enums\ExtractionStatus;
 use App\Models\Category;
 use App\Models\Document;
+use App\Support\DocumentMimeTypes;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -53,6 +54,20 @@ class HandleInertiaRequests extends Middleware
             'categories' => fn () => Category::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            // Powers Index.vue's type filter (`TYPE_OPTIONS`, pdf/word/excel
+            // entries only) — same pattern as `categories` above. Derived
+            // from DocumentMimeTypes::TYPE_TO_MIME/TYPE_LABELS, the single
+            // source of truth also used server-side by DocumentController
+            // (Epic 1/2 retrospectives, action item 3). `created` is
+            // deliberately absent here too: it stays a client-only entry in
+            // Index.vue (not tied to a mime type).
+            'documentTypeOptions' => fn () => collect(DocumentMimeTypes::TYPE_TO_MIME)
+                ->keys()
+                ->map(fn (string $type) => [
+                    'value' => $type,
+                    'label' => DocumentMimeTypes::TYPE_LABELS[$type] ?? $type,
+                ])
+                ->values(),
             // Sole channel back from the image-upload endpoint to the
             // editor (AD-13, spec-2-2: `return back()`, never
             // `response()->json()`) — Laravel's own flash bag ages this
