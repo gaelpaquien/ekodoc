@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-08-2026 08:49
-last_updated: 09-08-2026 11:05
+last_updated: 09-08-2026 15:34
 project: ekodoc
 project_key: NOKEY
 tracking_system: file-system
@@ -60,21 +60,21 @@ action_items:
       CategoryPicker.vue, la logique de recherche/filtrage de Index.vue et le piège
       de focus de Show.vue"
     owner: "prochaine session frontend"
-    status: open
+    status: in-progress
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"
   - id: "epic-1-retro-item-2-corriger-trapfocus-dans-importmodal-vue"
     epic: 1
     action: "Corriger trapFocus() dans ImportModal.vue pour exclure les éléments disabled
       (meme correctif que Show.vue : button:not([disabled]))"
     owner: "prochaine session touchant ImportModal.vue"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"
   - id: "epic-1-retro-item-3-centraliser-le-mapping-mime-type-format"
     epic: 1
     action: "Centraliser le mapping mime-type/format duplique entre DocumentController::previewFormat(),
       ExtractDocumentTextJob::formatFromMimeType() et DocumentController::TYPE_MIME_MAP"
     owner: "a planifier - decision architecture requise"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"
   - id: "epic-1-retro-item-4-lancer-bmad-sprint-planning-avant-de-dem"
     epic: 1
