@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-08-2026 08:49
-last_updated: 09-08-2026 09:06
+last_updated: 09-08-2026 11:05
 project: ekodoc
 project_key: NOKEY
 tracking_system: file-system
@@ -52,7 +52,7 @@ development_status:
   2-3-modifier-un-document-créé-existant: done
   2-4-exporter-un-document-créé-en-pdf: done
   2-5-exporter-un-document-créé-en-word: done
-  epic-2-retrospective: optional
+  epic-2-retrospective: done
 action_items:
   - id: "epic-1-retro-item-1-outiller-les-tests-js-vitest-vue-test-ut"
     epic: 1
@@ -83,3 +83,13 @@ action_items:
     owner: "Gael"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"
+  - id: "epic-2-retro-item-5-fiabiliser-le-nettoyage-entre-tests-stor"
+    epic: 2
+    action: "Fiabiliser le nettoyage entre tests (Storage::fake) ou isoler DeleteDocumentTest
+      - la suite complete (121 tests) echoue de facon intermittente (~50% des executions
+      dans cette session) a cause dun dossier documents/{id}/images/ qui survit au
+      nettoyage entre des tests de fichiers differents. Aucun defaut applicatif trouve
+      dans DeleteDocumentAction."
+    owner: "a planifier - decision humaine sur linvestissement"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-08.md"
