@@ -85,11 +85,12 @@ action_items:
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"
   - id: "epic-2-retro-item-5-fiabiliser-le-nettoyage-entre-tests-stor"
     epic: 2
-    action: "Fiabiliser le nettoyage entre tests (Storage::fake) ou isoler DeleteDocumentTest
-      - la suite complete (121 tests) echoue de facon intermittente (~50% des executions
-      dans cette session) a cause dun dossier documents/{id}/images/ qui survit au
-      nettoyage entre des tests de fichiers differents. Aucun defaut applicatif trouve
-      dans DeleteDocumentAction."
-    owner: "a planifier - decision humaine sur linvestissement"
+    action: "Ajouter une exclusion Windows Defender sur le dossier du projet (droits admin
+      requis). Un correctif applicatif (hook global de nettoyage dans tests/Pest.php)
+      a ete tente et rejete le 2026-09-09 : il ralentissait la suite complete de ~15-20x
+      (17-20s sans, 293-410s avec) sans que son benefice (elimination du flake) ait
+      ete verifie, pour compenser une lenteur d'environnement (scan antivirus synchrone
+      probable, pas un defaut du code applicatif). Voir Rejected dans le spec ref."
+    owner: "Gael - action admin machine"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-08.md"
+    ref: "_bmad-output/implementation-artifacts/spec-fix-full-suite-test-flake.md"
