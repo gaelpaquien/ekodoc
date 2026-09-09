@@ -7,14 +7,15 @@ paradigm: 'Thin Controller -> Action -> DTO -> Eloquent Model'
 scope: 'EkoDoc v1 complet - import, bibliotheque, recherche, edition WYSIWYG, export'
 status: final
 created: '2026-08-31'
-updated: '2026-09-01'
-binds: [FR1, FR2, FR3, FR4, FR5, FR6, FR7, FR8, FR9, FR10, FR11, FR12, NFR1, NFR2, NFR3, NFR4, NFR5]
+updated: '2026-09-09'
+binds: [FR1, FR2, FR3, FR4, FR5, FR6, FR7, FR8, FR9, FR10, FR11, FR12, FR13, FR14, NFR1, NFR2, NFR3, NFR4, NFR5]
 sources:
   - '../../briefs/brief-ekodoc-2026-08-31/brief.md'
   - '../../briefs/brief-ekodoc-2026-08-31/addendum.md'
   - '../../prds/prd-ekodoc-2026-08-31/prd.md'
   - '../../ux-designs/ux-ekodoc-2026-08-31/DESIGN.md'
   - '../../ux-designs/ux-ekodoc-2026-08-31/EXPERIENCE.md'
+  - '../../sprint-change-proposal-2026-09-09.md'
 companions: []
 ---
 
@@ -54,7 +55,7 @@ Chaque AD suit le même schéma : **Binds** (FR/NFR ou périmètre couvert), **P
 
 - **Binds:** all
 - **Prevents:** deux Actions qui se recouvrent partiellement (ex. une `SaveDocumentAction` générique ET une `CreateDocumentAction` séparée) ou une Action qui fait plusieurs choses non liées.
-- **Rule:** chaque Action porte un nom `{Verbe}{Entité}Action` (ex. `ImportDocumentAction`, `CategorizeDocumentAction`, `ExportDocumentToWordAction`), a une seule méthode publique `__invoke(DTO $data): mixed`, et ne connaît pas Inertia/HTTP (testable sans requête).
+- **Rule:** chaque Action porte un nom `{Verbe}{Entité}Action` (ex. `ImportDocumentAction`, `CreateTagAction`, `ExportDocumentToWordAction`), a une seule méthode publique `__invoke(DTO $data): mixed`, et ne connaît pas Inertia/HTTP (testable sans requête).
 
 ### AD-3 — DTO en frontière de chaque Action `[ADOPTED]`
 
@@ -68,11 +69,12 @@ Chaque AD suit le même schéma : **Binds** (FR/NFR ou périmètre couvert), **P
 - **Prevents:** deux modèles de contenu séparés (un pour les fichiers importés, un pour les documents créés) qui divergent sur la recherche, le filtrage ou l'affichage — exactement le piège que le brief reproche aux wikis/GED existants (voir addendum § Tour d'horizon).
 - **Rule:** un seul modèle `Document` avec une colonne `source` (`imported` | `created`). Les colonnes propres à un seul côté (`file_path`, `mime_type` pour `imported` ; `content_html` pour `created`) restent nullable plutôt que de justifier deux tables.
 
-### AD-5 — Classement à plat, une catégorie par document `[ADOPTED]`
+### AD-5 — Classement à plat, tags illimités par document `[AMENDED 2026-09-09]`
 
-- **Binds:** FR2, FR10
-- **Prevents:** une UI ou un import qui suppose une hiérarchie de dossiers pendant qu'un autre module suppose un tag multiple — deux modèles de classement incompatibles.
-- **Rule:** table `categories` (id, name) à plat, sans parent. `documents.category_id` nullable (`NULL` = "Non classé", jamais bloquant — voir `EXPERIENCE.md` § Component Patterns). Pas de relation many-to-many, pas de hiérarchie. Ceci résout délibérément l'ambiguïté "dossiers et/ou catégories" du PRD (FR2) en faveur d'un classement à plat, cohérent avec le champ unique déjà spécifié côté UX — pas un oubli de la piste "dossiers hiérarchiques".
+- **Binds:** FR2, FR10 (modèle de tags — le filtrage par tag, FR7, est gouverné par AD-8)
+- **Prevents:** une UI qui suppose une hiérarchie de tags pendant qu'un autre module suppose un tag plat ; un mélange tag/texte libre non contrôlé (doublons du type "Finance"/"finance"/"Finances") ; deux Actions qui écrivent le pivot `document_tag` selon des sémantiques différentes (une en remplacement complet, une en ajout/retrait incrémental), provoquant une perte de mise à jour concurrente sur le même document.
+- **Rule:** table `tags` (id, name) à plat, sans hiérarchie, sans parent. Relation many-to-many via pivot `document_tag` (document_id, tag_id). Pas de limite de nombre de tags par document. Tags gérés exclusivement depuis la page Configuration (FR14, voir AD-18) — jamais de création à la volée ailleurs (pas de texte libre dans le sélecteur de tags). `SyncDocumentTagsAction` est l'unique Action qui écrit `document_tag`, invoquée en remplacement complet (`sync()`, jamais `attach()`/`detach()` incrémental) depuis les deux contextes UI qui assignent des tags à un document (sauvegarde Éditeur, Fiche document) ; aucune autre Action n'écrit ce pivot directement. `TagSelector.vue` est un composant unique et partagé (jamais réimplémenté par écran) : multi-select construit en Tailwind CSS pur, sans librairie de composants tierce (ex. pas de `vue-multiselect` — même contrainte que le reste de l'UI, héritée d'`EXPERIENCE.md`), et n'expose aucun mode "créable" — il ne propose que des tags déjà existants (chargés depuis la table `tags`), jamais de saisie libre, dans quelque écran que ce soit où il est utilisé.
+- **Changelog:** remplace l'AD-5 v1 (catégorie unique, table `categories` à plat, `documents.category_id` nullable) et retire AD-16 (`category_id` : un seul point d'écriture — obsolète, le champ disparaît). Table `categories`, colonne `documents.category_id`, `CategorizeDocumentAction`, modèle/controller `Category` sont **supprimés**, pas dépréciés. Aucune migration des données existantes vers des tags équivalents (décision produit explicite, 2026-09-09) — le tagging repart de zéro.
 
 ### AD-6 — Stockage à l'import synchrone, extraction de texte en file d'attente `[AMENDED 2026-09-01]`
 
@@ -130,32 +132,46 @@ Chaque AD suit le même schéma : **Binds** (FR/NFR ou périmètre couvert), **P
 
 ### AD-15 — Suppression définitive et nettoyage complet `[ADOPTED]`
 
-- **Binds:** FR1, FR10
-- **Prevents:** un fichier disque, une entrée d'index Scout, ou un cache de prévisualisation orphelins après la suppression d'un `Document` ; et une suppression douce ajoutée sans discipline qui laisse un document "supprimé" réapparaître dans les résultats Scout par défaut.
-- **Rule:** suppression **définitive** (pas de `SoftDeletes`), cohérent avec "pas d'annulation prévue en v1" (`EXPERIENCE.md` § Interaction Primitives). `DeleteDocumentAction` est l'unique point d'entrée de suppression et, dans cet ordre : retire le document de l'index Scout, supprime le fichier original (AD-7) et ses images associées (AD-14), supprime le cache de prévisualisation (AD-10) s'il existe, puis supprime la ligne `Document`. Aucun contrôleur ni autre Action ne supprime un `Document` directement.
+- **Binds:** FR1, FR10, FR13
+- **Prevents:** un fichier disque, une entrée d'index Scout, ou un cache de prévisualisation orphelins après la suppression d'un `Document` ; et une suppression douce ajoutée sans discipline qui laisse un document "supprimé" réapparaître dans les résultats Scout par défaut ; un builder qui s'appuie sur une contrainte de clé étrangère (`cascadeOnDelete()`) pour nettoyer `document_attachments`, ce qui supprime bien les lignes mais laisse les fichiers disque orphelins.
+- **Rule:** suppression **définitive** (pas de `SoftDeletes`), cohérent avec "pas d'annulation prévue en v1" (`EXPERIENCE.md` § Interaction Primitives). `DeleteDocumentAction` est l'unique point d'entrée de suppression et, dans cet ordre : retire le document de l'index Scout, supprime le fichier original (AD-7) et ses images associées (AD-14), supprime chaque fichier disque de `document_attachments` puis leurs lignes (AD-17 — jamais une simple `cascadeOnDelete()` en base, qui ne toucherait pas le disque), supprime le cache de prévisualisation (AD-10) s'il existe, puis supprime la ligne `Document` (le pivot `document_tag`, lui, est nettoyé par une contrainte `cascadeOnDelete()` standard — aucun fichier disque n'y est associé, donc aucun nettoyage applicatif requis). Aucun contrôleur ni autre Action ne supprime un `Document` directement.
 
-### AD-16 — `category_id` : un seul point d'écriture `[ADOPTED]`
+### AD-16 — `[REMOVED 2026-09-09]`
 
-- **Binds:** FR2, FR10
-- **Prevents:** `CategorizeDocumentAction` et une future Action de sauvegarde/mise à jour qui écrivent toutes les deux `category_id`, sans règle de priorité en cas de logique dupliquée.
-- **Rule:** `CategorizeDocumentAction` est l'unique Action qui modifie `category_id`, invoquée depuis les trois contextes UI (modale Import, sauvegarde Éditeur, Fiche document — `EXPERIENCE.md` § "Sélecteur catégorie/dossier"). Aucune autre Action n'écrit ce champ directement. `DeleteCategoryAction` met `category_id` à `NULL` sur tous les documents concernés (retour à "Non classé"), jamais un blocage ni une suppression en cascade des documents.
+- **Binds:** — (retiré)
+- **Prevents:** — (retiré)
+- **Rule:** — (retiré). `category_id` et `CategorizeDocumentAction` sont supprimés par l'amendement AD-5 (tags illimités) ; voir le changelog d'AD-5 pour le détail. ID conservé pour traçabilité, jamais réattribué à une nouvelle décision.
+
+### AD-17 — Pièces jointes sur document créé : disque privé, extraction et recherche unifiées `[ADOPTED 2026-09-09]`
+
+- **Binds:** FR6, FR13
+- **Prevents:** un fichier attaché à un document créé qui contourne la discipline "jamais public" déjà en vigueur pour les originaux importés (AD-7) ; une pièce jointe qui reste invisible à la recherche fulltexte alors que FR6/FR13 l'exigent explicitement "au même titre qu'un document importé" ; un deuxième mécanisme d'extraction de texte codé en parallèle de celui d'AD-6/AD-9 au lieu de le réutiliser ; un téléchargement/aperçu de pièce jointe qui contourne la route applicative contrôlée déjà en place pour les fichiers originaux (AD-7).
+- **Rule:** types acceptés identiques à FR1 (PDF, Word `.docx`, Excel `.xlsx`) — même validation de `mime_type` que `ImportDocumentAction`, pas une liste distincte. Nouvelle table `document_attachments` (id, document_id, file_path, original_filename, mime_type, `extracted_text`, `extraction_status`, timestamps) — mêmes colonnes d'extraction que `documents` (AD-9), même sémantique d'échec non bloquant. Fichiers sur `storage/app/private/documents/{document_id}/attachments/{uuid}.{ext}`, jamais public — même discipline qu'AD-7. `AttachDocumentFileAction` stocke le fichier, crée la ligne `document_attachments` (`extraction_status = pending`) et dispatche `ExtractDocumentTextJob` (AD-6), généralisé pour cibler indifféremment un `Document` ou un `DocumentAttachment` (même job, même logique `pdfparser`/`phpword`/`phpspreadsheet` — jamais un second pipeline d'extraction dupliqué). Le contenu extrait de chaque pièce jointe complétée est agrégé par `Document::toSearchableArray()` dans le texte indexé du document parent — pas de ligne Scout séparée par pièce jointe, cohérent avec AD-8 (un seul chemin de requête de recherche). Prévisualisation/téléchargement individuel (FR13) passent par `DocumentAttachmentController@preview`/`@download`, route applicative dédiée avec la même discipline qu'AD-7 (vérification existence/lisibilité avant service, jamais de lien direct). `DetachDocumentFileAction` retire le fichier disque et la ligne `document_attachments` puis déclenche le ré-indexage Scout du document parent (trait `Searchable`, événement `saved`). La suppression complète d'un document (y compris ses pièces jointes) est traitée par `DeleteDocumentAction`, jamais par `DetachDocumentFileAction` ni par une contrainte de clé étrangère — voir AD-15.
+
+### AD-18 — Page Configuration : gestion des tags `[ADOPTED 2026-09-09]`
+
+- **Binds:** FR14
+- **Prevents:** un renommage ou une suppression de tag exécutés depuis plus d'un point d'entrée, ou une suppression de tag qui entraîne silencieusement la suppression des documents qui le portent.
+- **Rule:** `TagController` expose une page Inertia listant les tags avec create/rename/delete. `DeleteTagAction` détache le tag de tous les documents (suppression des lignes du pivot `document_tag`) sans jamais supprimer les documents eux-mêmes — discipline "détacher, jamais cascader" cohérente avec le mécanisme retiré qu'elle remplace (voir AD-5, AD-16).
 
 ## Capability → Architecture Map
 
 | Capability / Area | Lives in | Governed by |
 | --- | --- | --- |
 | FR1 — Importer | `Actions/Document/ImportDocumentAction`, `Http/Controllers/DocumentController@store` | AD-6, AD-7, AD-9 |
-| FR2/FR10 — Classer | `Actions/Document/CategorizeDocumentAction`, `Models/Category` | AD-4, AD-5 |
-| FR3 — Métadonnées | `Models/Document` | AD-4 |
+| FR2/FR10 — Modèle de tags | `Actions/Tag/SyncDocumentTagsAction`, `Models/Tag`, pivot `document_tag`, `Components/TagSelector.vue` | AD-5 |
+| FR3 — Métadonnées | `Models/Document` (titre, type, date), `Models/Tag` (tags, via AD-5) | AD-4, AD-5 |
 | FR4 — Prévisualiser (Office importé) | `Actions/Document/ConvertDocumentToPreviewAction` | AD-10 |
 | FR4 — Prévisualiser (PDF natif / document créé) | `PreviewPanel.vue` (rendu direct, pas de conversion) | AD-10 |
 | FR5 — Télécharger | `DocumentController@download` | AD-7 |
-| FR6/FR7 — Recherche & filtres | `Models/Document` (Scout), `DocumentController@index` | AD-8, AD-9 |
+| FR6/FR7 — Recherche & filtres (dont filtre par tag) | `Models/Document` (Scout), `DocumentController@index` — un seul chemin de requête, y compris pour le filtre tag (jamais une requête `whereHas('tags')` séparée) | AD-5, AD-8, AD-9 |
 | FR8 — Éditeur WYSIWYG | `resources/js/Pages/Editor.vue` (TipTap) | Stack |
 | FR9 — Images inline | `Actions/Document/UploadEditorImageAction` | AD-14 |
 | FR11 — Export PDF | `Actions/Document/ExportDocumentToPdfAction` | AD-11 |
 | FR12 — Export Word | `Actions/Document/ExportDocumentToWordAction` | AD-12 |
-| Suppression document | `Actions/Document/DeleteDocumentAction` | AD-15 |
+| FR6/FR13 — Pièces jointes (document créé) & leur recherche | `Actions/Document/AttachDocumentFileAction`, `Actions/Document/DetachDocumentFileAction`, `Models/DocumentAttachment`, `Http/Controllers/DocumentAttachmentController` (`preview`/`download`), `Http/Requests/AttachDocumentFileRequest`, `DataTransferObjects/AttachDocumentFileData` | AD-17 |
+| FR14 — Configuration des tags | `Http/Controllers/TagController`, `Actions/Tag/CreateTagAction`, `RenameTagAction`, `DeleteTagAction` | AD-18 |
+| Suppression document | `Actions/Document/DeleteDocumentAction` | AD-15, AD-17 |
 
 ## Consistency Conventions
 
@@ -165,7 +181,7 @@ Chaque AD suit le même schéma : **Binds** (FR/NFR ou périmètre couvert), **P
 | Code quality | SOLID, pas de commentaire sauf complexité métier/technique réelle (jamais pour décrire ce que fait un code déjà lisible). 100% de couverture de tests (Pest), vérifiée manuellement (`pest --coverage`) avant chaque commit — pas de pipeline CI en v1 (cohérent avec NFR1), donc rien ne l'impose automatiquement. |
 | Data & formats | Dates en `timestamps` Eloquent standard (UTC en base, formatage en français côté Vue). IDs entiers auto-incrémentés (pas d'UUID — aucun besoin d'ID non devinable en mono-utilisateur local). |
 | État & transverse | Erreurs métier (extraction échouée, conversion échouée, export échoué) : jamais d'exception non catchée remontée à l'utilisateur — toujours un message explicite côté Inertia (cohérent avec `EXPERIENCE.md` § State Patterns, "jamais un échec silencieux"). Logs applicatifs Laravel standard (canal `stack`), pas de service de log externe (NFR1). |
-| Routage | Un controller par ressource (`DocumentController`, `CategoryController`), méthodes RESTful standard (`index`, `store`, `show`, `update`, `destroy`) même sans exposer d'API — ce qui garde la convention Laravel lisible. |
+| Routage | Un controller par ressource (`DocumentController`, `TagController`), méthodes RESTful standard (`index`, `store`, `show`, `update`, `destroy`) même sans exposer d'API — ce qui garde la convention Laravel lisible. |
 
 ## Stack
 
@@ -194,38 +210,50 @@ Chaque AD suit le même schéma : **Binds** (FR/NFR ou périmètre couvert), **P
 app/
   Actions/
     Document/              # une classe par operation - voir Capability -> Architecture Map
-    Category/              # une classe par operation - voir Capability -> Architecture Map
+                            # dont SyncDocumentTagsAction (AD-5), AttachDocumentFileAction,
+                            # DetachDocumentFileAction (AD-17)
+    Tag/                   # CreateTagAction, RenameTagAction, DeleteTagAction (FR14, AD-18 uniquement)
   DataTransferObjects/
     DocumentData.php
-    CategoryData.php
+    TagData.php
+    AttachDocumentFileData.php
   Http/
     Controllers/
       DocumentController.php
-      CategoryController.php
+      DocumentAttachmentController.php  # preview/download individuel (FR13, AD-17)
+      TagController.php
     Requests/
       ImportDocumentRequest.php
       SaveDocumentRequest.php
+      AttachDocumentFileRequest.php
   Jobs/
-    ExtractDocumentTextJob.php  # extraction de texte hors requête HTTP (AD-6)
+    ExtractDocumentTextJob.php  # extraction de texte hors requête HTTP - cible Document ou
+                                # DocumentAttachment (AD-6, AD-17)
   Models/
-    Document.php           # Searchable (Scout) ; id, title, source, category_id, file_path,
+    Document.php           # Searchable (Scout) ; id, title, source, file_path,
                             # mime_type, content_html, extracted_text, extraction_status, timestamps
-    Category.php           # id, name
+                            # toSearchableArray() agrege le texte des pieces jointes (AD-17)
+    Tag.php                 # id, name
+    DocumentAttachment.php  # id, document_id, file_path, original_filename, mime_type,
+                            # extracted_text, extraction_status, timestamps
 resources/
   js/
-    Pages/                 # Library.vue, DocumentShow.vue, Editor.vue
-    Components/            # DocumentCard.vue, SearchBar.vue, FilterChips.vue, CategorySelector.vue, ImportZone.vue, PreviewPanel.vue
+    Pages/                 # Library.vue, DocumentShow.vue, Editor.vue, Search.vue, Configuration.vue
+    Components/            # DocumentRow.vue, SearchBar.vue, FilterChips.vue, TagSelector.vue, ImportZone.vue, PreviewPanel.vue
 storage/
   app/
     private/
-      documents/{document_id}/{filename}          # fichiers originaux importés
-      documents/{document_id}/images/{uuid}.{ext} # images inserees dans l'editeur (FR9)
-      previews/{document_id}.pdf                  # conversions Office mises en cache
+      documents/{document_id}/{filename}             # fichiers originaux importés
+      documents/{document_id}/images/{uuid}.{ext}     # images inserees dans l'editeur (FR9)
+      documents/{document_id}/attachments/{uuid}.{ext} # pieces jointes sur document cree (FR13)
+      previews/{document_id}.pdf                      # conversions Office mises en cache
 ```
+
+Table pivot `document_tag` (document_id, tag_id) — pas de modèle Eloquent dédié, relation `belongsToMany` standard sur `Document`/`Tag`.
 
 ## Deferred
 
-- **OCR pour PDF scannés** : hors v1 (AD-9). Un document sans couche texte n'est pas indexé pour la recherche fulltexte — limite acceptée, pas résolue silencieusement. À envisager si le corpus réel contient des documents scannés en nombre significatif.
+- **OCR pour PDF scannés** : hors v1 (AD-9, et par extension AD-17 pour les pièces jointes qui réutilisent le même pipeline d'extraction). Un document ou une pièce jointe sans couche texte n'est pas indexé pour la recherche fulltexte — limite acceptée, pas résolue silencieusement. À envisager si le corpus réel contient des documents scannés en nombre significatif.
 - **Empreinte locale Chromium + LibreOffice** : AD-10 (LibreOffice) et AD-11 (Browsershot/Chromium) alourdissent l'installation locale par rapport à un outil "tout PHP" — compromis assumé au profit de la fidélité (NFR5) et de la prévisualisation Office (FR4), pas un renoncement silencieux à la posture "reste petit" du brief.
 - **Sauvegarde/backup** des documents et de la base MySQL locale : aucune stratégie en v1. Risque accepté pour un usage solo ; à revisiter avant l'ouverture multi-utilisateurs (PRD § Trajectoire post-v1) ou si le corpus devient critique.
 - **Formats hérités `.doc`/`.xls`** : statut du corpus réel inconnu (l'utilisateur n'est pas certain du volume ni des formats). NFR4 (PDF/`.docx`/`.xlsx`) reste la cible ; à étendre (LibreOffice headless les couvre déjà techniquement) si des fichiers hérités apparaissent en usage réel.

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>EkoDoc — Configuration</title>
+<style>
+/*
+  Screen: Configuration (gestion des tags)
+  Governed by:
+  - DESIGN.md § Components: sidebar, tag-chip, button-secondary, destructive tokens
+  - EXPERIENCE.md § Component Patterns: "Gestion des tags"
+  - EXPERIENCE.md § State Patterns: "Suppression de tag confirmée"
+  - EXPERIENCE.md § Interaction Primitives: suppression de tag toujours confirmée
+  - EXPERIENCE.md Key Flows: Flow 4, étapes 4-5 (suppression du tag "Finances", doublon de "Finance", dialogue nommant 3 documents)
+  Two states shown side by side: canonical tag list (left) and the load-bearing delete-confirmation dialog (right).
+*/
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #ddd8d0; padding: 32px; }
+.browser-frame { max-width: 1280px; margin: 0 auto; border-radius: 12px; overflow: hidden; border: 1px solid #c9c2b7; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+.chrome { background: #EAE6E1; padding: 10px 14px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #DBD5CD; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: #c9c2b7; }
+.url { margin-left: 12px; background: #F5F3F0; border: 1px solid #DBD5CD; border-radius: 6px; padding: 4px 10px; font-size: 12px; color: #7A7266; }
+.app { display: flex; min-height: 560px; background: #F5F3F0; color: #221F1A; }
+
+.sidebar { width: 220px; background: #EAE6E1; border-right: 1px solid #DBD5CD; display: flex; flex-direction: column; padding: 20px 12px; }
+.brand { font-size: 14px; font-weight: 600; padding: 0 8px 20px; }
+.nav-item { font-size: 14px; padding: 9px 12px; border-radius: 8px; margin-bottom: 2px; }
+.nav-item.active { background: #C6FF00; color: #12130A; font-weight: 600; }
+.sidebar-spacer { flex: 1; }
+.theme-toggle { font-size: 12px; color: #7A7266; padding: 8px 12px; }
+.footer { font-size: 14px; color: #7A7266; padding: 4px 12px 0; }
+
+.main { flex: 1; padding: 28px 32px; max-width: 960px; display: flex; gap: 32px; }
+.panel { flex: 1; }
+.panel-caption { font-size: 12px; color: #7A7266; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px; }
+h1 { font-size: 24px; font-weight: 600; margin-bottom: 16px; }
+.btn-secondary { background: #EAE6E1; border: 1px solid #DBD5CD; color: #221F1A; font-size: 13px; padding: 6px 12px; border-radius: 8px; }
+.new-tag { display: flex; gap: 8px; margin-bottom: 16px; }
+.new-tag input { flex: 1; background: #F5F3F0; border: 1px solid #DBD5CD; border-radius: 8px; padding: 8px 12px; font-size: 13px; color: #7A7266; }
+
+.tag-row { display: flex; align-items: center; gap: 10px; padding: 10px; border-bottom: 1px solid #DBD5CD; font-size: 14px; }
+.tag-row.pending { background: #EFEBE6; border-radius: 6px; }
+.tag-chip { background: #EAE6E1; color: #221F1A; border-radius: 12px; padding: 4px 12px; font-size: 13px; }
+.tag-name { flex: 1; }
+.tag-actions { display: flex; gap: 8px; font-size: 12px; }
+.link { color: #7A7266; }
+.link.danger { color: #B3261E; }
+
+.dialog-wrap { background: #EAE6E1; border-radius: 12px; padding: 24px; border: 1px solid #DBD5CD; }
+.dialog { background: #F5F3F0; border: 1px solid #DBD5CD; border-radius: 10px; padding: 20px; }
+.dialog h2 { font-size: 16px; font-weight: 600; margin-bottom: 10px; }
+.dialog p { font-size: 14px; color: #221F1A; line-height: 1.5; margin-bottom: 18px; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.btn-cancel { background: #F5F3F0; border: 1px solid #DBD5CD; color: #221F1A; font-size: 13px; padding: 8px 14px; border-radius: 8px; }
+.btn-destructive { background: #B3261E; color: #FFFFFF; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 8px; }
+</style>
+</head>
+<body>
+<div class="browser-frame">
+  <div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">ekodoc.test/configuration</span></div>
+  <div class="app">
+    <div class="sidebar">
+      <div class="brand">EkoDoc</div>
+      <div class="nav-item">Bibliothèque</div>
+      <div class="nav-item">Recherche</div>
+      <div class="nav-item active">Configuration</div>
+      <div class="sidebar-spacer"></div>
+      <div class="theme-toggle">◐ Thème clair</div>
+      <div class="footer">Made with 💔 Claude</div>
+    </div>
+    <div class="main">
+      <div class="panel">
+        <div class="panel-caption">État canonique</div>
+        <h1>Configuration — Tags</h1>
+        <div class="new-tag"><input type="text" value="Nouveau tag…" /><span class="btn-secondary">Créer</span></div>
+        <div class="tag-row"><span class="tag-chip">Finance</span><span class="tag-name">12 documents</span><span class="tag-actions"><span class="link">Renommer</span><span class="link danger">Supprimer</span></span></div>
+        <div class="tag-row pending"><span class="tag-chip">Finances</span><span class="tag-name">3 documents</span><span class="tag-actions"><span class="link">Renommer</span><span class="link danger">Supprimer</span></span></div>
+        <div class="tag-row"><span class="tag-chip">Procédures</span><span class="tag-name">18 documents</span><span class="tag-actions"><span class="link">Renommer</span><span class="link danger">Supprimer</span></span></div>
+        <div class="tag-row"><span class="tag-chip">RH</span><span class="tag-name">7 documents</span><span class="tag-actions"><span class="link">Renommer</span><span class="link danger">Supprimer</span></span></div>
+        <div class="tag-row"><span class="tag-chip">IT</span><span class="tag-name">4 documents</span><span class="tag-actions"><span class="link">Renommer</span><span class="link danger">Supprimer</span></span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-caption">État alternatif — confirmation de suppression ("Finances")</div>
+        <div class="dialog-wrap">
+          <div class="dialog">
+            <h2>Supprimer le tag "Finances" ?</h2>
+            <p>Ce tag est utilisé sur 3 documents. Il sera détaché de ces documents — les documents eux-mêmes ne seront pas supprimés.</p>
+            <div class="dialog-actions">
+              <span class="btn-cancel">Annuler</span>
+              <span class="btn-destructive">Supprimer</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

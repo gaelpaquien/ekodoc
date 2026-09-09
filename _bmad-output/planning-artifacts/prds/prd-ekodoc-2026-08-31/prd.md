@@ -2,7 +2,7 @@
 title: PRD EkoDoc
 status: final
 created: 2026-08-31
-updated: 2026-08-31
+updated: 2026-09-09
 ---
 
 # PRD : EkoDoc
@@ -27,8 +27,8 @@ Deux usages concrets couvrent la v1 :
 ### Bibliothèque de documents (import & organisation)
 
 - **FR1** — Importer un document existant (PDF, Word `.docx`, Excel `.xlsx`) dans la base.
-- **FR2** — Classer les documents (importés et créés) par dossiers et/ou catégories.
-- **FR3** — Associer à chaque document des métadonnées de base : titre, type, catégorie/dossier, date d'ajout.
+- **FR2** — Classer les documents (importés et créés) par tags illimités, choisis dans une liste gérée (pas de texte libre, pour éviter les doublons de libellés du type « Finance »/« finance »/« Finances »).
+- **FR3** — Associer à chaque document des métadonnées de base : titre, type, tags, date d'ajout.
 
 ### Consultation & téléchargement
 
@@ -37,8 +37,8 @@ Deux usages concrets couvrent la v1 :
 
 ### Recherche & filtrage
 
-- **FR6** — Rechercher en fulltexte sur le contenu des documents (importés et créés) — priorité v1 confirmée pour rester exploitable au-delà de quelques dizaines de documents.
-- **FR7** — Filtrer les résultats par catégorie/dossier et par type de document (PDF, Word, Excel, document créé dans l'outil).
+- **FR6** — Rechercher en fulltexte sur le contenu des documents (importés et créés, pièces jointes incluses — FR13) — priorité v1 confirmée pour rester exploitable au-delà de quelques dizaines de documents.
+- **FR7** — Filtrer les résultats par tag et par type de document (PDF, Word, Excel, document créé dans l'outil).
 
 ### Création & export
 
@@ -47,6 +47,11 @@ Deux usages concrets couvrent la v1 :
 - **FR10** — Enregistrer un document créé dans la base, avec les mêmes propriétés de classement/recherche qu'un document importé (FR2, FR3, FR6, FR7 s'appliquent aussi aux documents créés).
 - **FR11** — Exporter un document créé vers PDF, en conservant fidèlement la position et le rendu des images insérées (FR9).
 - **FR12** — Exporter un document créé vers Word (`.docx`), en conservant fidèlement la position et le rendu des images insérées (FR9).
+
+### Pièces jointes & configuration
+
+- **FR13** — Associer un ou plusieurs fichiers (PDF, Word, Excel) à un document créé, indépendamment du contenu rédigé dans l'éditeur WYSIWYG (FR8) : ajout, prévisualisation/téléchargement individuel et retrait d'une pièce jointe, sans affecter le contenu de l'éditeur. Le contenu de chaque pièce jointe est indexé pour la recherche fulltexte (FR6) au même titre qu'un document importé (FR1).
+- **FR14** — Gérer les tags (créer, renommer, supprimer) depuis une page de configuration dédiée. La suppression d'un tag le détache de tous les documents associés, sans jamais supprimer les documents eux-mêmes.
 
 ## Exigences non fonctionnelles
 
@@ -77,12 +82,11 @@ Reprise du principe posé dans le brief : chaque étape suivante ne se justifie 
 2. **Ouverture à 2-3 collègues** — une fois l'usage quotidien solo prouvé ; déclenche les décisions d'infrastructure/accès (NFR1, NFR3 à revoir).
 3. **Agent IA (MCP)** — une fois la base assez riche et utilisée pour qu'une interrogation en langage naturel apporte une valeur réelle par rapport à la recherche fulltexte (FR6) déjà en place.
 
-Pas de sur-ingénierie anticipée : rien de ce qui précède n'est pré-construit "au cas où" dans la v1.
+Pas de sur-ingénierie anticipée : rien de ce qui précède n'est pré-construit « au cas où » dans la v1.
 
 ## Questions ouvertes
 
 - Faut-il supporter les formats hérités `.doc`/`.xls`, ou ~350 documents sont-ils déjà en formats modernes `.docx`/`.xlsx` ? — à vérifier en amont de l'architecture.
-- Granularité de classement à trancher : dossiers hiérarchiques, catégories à plat, ou les deux (FR2) — laissé ouvert pour la phase architecture/UX.
 - Choix technique du moteur de recherche fulltexte (FR6) — plusieurs options possibles selon la stack Laravel, détaillées en `addendum.md`, à arbitrer en architecture.
 
 ## Index des assumptions

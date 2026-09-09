@@ -1,196 +1,131 @@
-# Adversarial Review — ARCHITECTURE-SPINE.md (EkoDoc)
+---
+title: Adversarial Review — ARCHITECTURE-SPINE.md (2026-09-09 amendment)
+reviewer: adversarial-spine-review
+target: ../ARCHITECTURE-SPINE.md
+date: 2026-09-09
+method: >
+  Construct pairs of one-level-down units (e.g. two builders each implementing
+  a different story) that each obey every cited AD to the letter yet still
+  produce incompatible systems. Every pair found is reported as a hole to be
+  closed by a new or tightened AD — no fixes are proposed here.
+---
 
-**Lens:** Construct pairs of sibling units (Action/Action, Action/Controller, Vue/Vue, Model/Action…) that each satisfy every applicable AD to the letter, yet build incompatibly with each other. Each finding is a hole in the spine, not a code bug — the fix is a new or tightened AD.
+# Adversarial Review — EkoDoc Architecture Spine (2026-09-09 amendment)
 
-**Source reviewed:** `_bmad-output/planning-artifacts/architecture/architecture-ekodoc-2026-08-31/ARCHITECTURE-SPINE.md` (2026-08-31 draft)
+## Verdict
 
-**Total findings: 14**
+The 2026-09-09 amendment (AD-5 amended to tags, AD-16 removed, AD-17/AD-18
+added) is **not yet safe to build from as-is**. The category→tag removal
+itself is clean (no stray `category_id`/`CategorizeDocumentAction` references
+survive in the Capability Map, Structural Seed, or other ADs). But the new
+surface area — the tag-assignment write path, attachment cleanup ordering,
+and attachment structural placement — has real seams where two AD-compliant
+builders diverge. Two findings are **critical** and should block story
+slicing for Epic 3 until closed.
 
 ---
 
-## F1 — `DocumentData` has no canonical shape, so Import and Create/Update populate it differently
+## Finding 1 (CRITICAL) — No named owner for the `document_tag` write path; full-replace vs incremental mutation collide
 
-**Units:** `ImportDocumentAction(DocumentData $data)` vs. an editor-save path (`SaveDocumentRequest` → some Action) that also builds `DocumentData`.
+**ADs involved:** AD-5, AD-2, AD-18. **Capability Map row:** "FR2/FR7/FR10 — Tags & filtrage."
 
-**Both obey the letter of the spine:** AD-3 only requires "a typed readonly DTO, never an array or Request." AD-4 only requires that the `Document` model itself has nullable side-specific columns.
+AD-5 and AD-18 fully specify the **tag entity's** lifecycle (create/rename/delete, Configuration-only). Neither AD, nor the Structural Seed's `Actions/Tag/` comment (`CreateTagAction, RenameTagAction, DeleteTagAction`), nor the Capability Map, names an Action that owns **attaching/detaching existing tags to/from a `Document`** — i.e. writes to the `document_tag` pivot itself. AD-2 requires every mutation to live in exactly one named Action, but no Action for this specific mutation exists anywhere in the spine.
 
-**Divergence:** Nothing in the spine fixes `DocumentData`'s property list. Builder A (import path) reasonably defines it with `file_path`, `mime_type`, `original_filename`, `extracted_text`, and no `content_html`. Builder B (WYSIWYG create/save path) reasonably defines it with `content_html`, `title`, and no `file_path`/`mime_type`. Since the structural seed names exactly **one** `DocumentData.php` for both Controllers, the two builders either (a) each redeclare an incompatible constructor signature for the same class name — a merge collision — or (b) silently agree to make every property nullable/optional, which defeats AD-3's stated purpose (an implicit, framework-free contract) by turning the DTO into the very ambiguous bag AD-3 was written to prevent.
+Construct two builders, each fully AD-compliant:
 
-**AD fix:** Tighten AD-3 (or add AD-3a) to require one DTO per Action, not per entity: `ImportDocumentData`, `CreateDocumentData`, `CategorizeDocumentData`, etc., each with only the fields that Action needs. Ban the "one shared `{Entity}Data`" pattern implied by the structural seed's single `DocumentData.php` line.
+- **Builder A**, implementing "create/save a document with tags" (Editor save flow, FR8/FR2): folds tag assignment into the existing `CreateDocumentAction`/`SaveDocumentAction`, calling `$document->tags()->sync($tagIds)` as part of the single document-save transaction. Semantics: **full replace** of the tag set on every save.
+- **Builder B**, implementing "add/remove a tag from an already-classified document" (e.g. from `DocumentShow.vue` for an imported document, FR2/FR7): adds a new `Actions/Tag/AttachTagToDocumentAction` / `DetachTagFromDocumentAction` pair — a perfectly AD-2-conformant name, `{Verbe}{Entité}Action`, single public `__invoke`. Semantics: **incremental** `attach()`/`detach()` on the pivot.
 
----
+Both pass every literal AD-2/AD-5/AD-18 check. But now the `document_tag` pivot has two independent, semantically incompatible writers: a "replace everything" path and an "add/remove one" path. If a user has the Editor open (autosave firing `sync()`) while also using a quick "add tag" affordance elsewhere on the same document, the replace-path autosave can silently discard a tag just attached by the incremental path (classic lost-update race) — and there is no rule anywhere assigning which Action is authoritative for the pivot, or forbidding a second one from existing.
 
-## F2 — Category creation has two possible owners
-
-**Units:** `CategorizeDocumentAction` (assigns a category while importing/editing a document) vs. `CreateCategoryAction` / `CategoryController@store`.
-
-**Both obey the letter of the spine:** AD-5 only constrains the *shape* of `categories` (flat, nullable FK). AD-2 only requires each Action be single-purpose and named `{Verbe}{Entité}Action`.
-
-**Divergence:** The UX almost certainly wants "type a new category name inline while categorizing a document" (a free-text `CategorySelector.vue`, per the structural seed). Builder A implements this as `CategorizeDocumentAction` doing a `firstOrCreate` on `categories.name` — technically still "one operation," still correctly named. Builder B, working from `Actions/Category/CreateCategoryAction` in the seed, assumes that action is the *only* path that ever inserts a row into `categories`, and writes `CategoryController@index`/dedupe logic on that assumption (e.g., a "manage categories" admin list that expects every category to have been created through `CreateCategoryAction`, perhaps with an audit log or normalization step it applies at creation time). If Builder A's inline upsert bypasses that normalization, categories accumulate through two divergent creation paths, one of which silently skips whatever `CreateCategoryAction` adds later (dedupe by trimmed/case-folded name, slug generation, etc.).
-
-**AD fix:** New AD: "Category creation has exactly one entry point, `CreateCategoryAction`. Any other Action that needs a category to exist (e.g. `CategorizeDocumentAction`) must call `CreateCategoryAction` internally rather than touching the `categories` table directly — never a local `firstOrCreate`."
+**This is a hole to close**, e.g. an AD stating "exactly one Action (`SyncDocumentTagsAction` or similar) is the sole writer of `document_tag`; every UI touchpoint that changes a document's tags — creation, edit, imported-document classification — calls it with the full desired tag-ID set."
 
 ---
 
-## F3 — No Action owns "edit an existing document's metadata/content," so two Actions race on the same columns
+## Finding 2 (CRITICAL) — AD-15's Rule text was not amended; attachment cleanup ordering is genuinely ambiguous, and cascade-delete is a live escape hatch
 
-**Units:** `CategorizeDocumentAction` (per Capability Map, governs FR2/FR10) vs. whatever Action backs `SaveDocumentRequest` (listed in the structural seed's `Http/Requests/`, but with **no corresponding Action** listed under `Actions/Document/`).
+**ADs involved:** AD-15, AD-17.
 
-**Both obey the letter of the spine:** AD-2 says each Action does one named thing; nothing forbids two different Actions from each legitimately touching the `documents` row for their own concern.
+AD-17's text is the *only* place that extends deletion: "`DeleteDocumentAction` (AD-15) est étendue pour nettoyer aussi ces fichiers, dans le même ordre que le nettoyage existant." **AD-15 itself was not edited** — its own Rule still lists, verbatim, only: Scout unindex → delete original file + images (AD-7/AD-14) → delete preview cache (AD-10) → delete `Document` row. A builder who reads AD-15 as the self-contained source of truth for `DeleteDocumentAction` (which is exactly what AD-15's own text claims to be: "l'unique point d'entrée de suppression") has no textual signal there that attachments exist at all — the extension lives one AD away, referenced only in the reverse direction.
 
-**Divergence:** `SaveDocumentRequest` implies an "edit/save document" flow (title, `content_html`, and plausibly `category_id` if the editor also lets you reclassify a document while editing it — the UX seed lists `CategorySelector.vue` as a shared component available on multiple pages, not just import). If both a `SaveDocumentAction` (invented by Builder B to back `SaveDocumentRequest`) and `CategorizeDocumentAction` (Builder A) can each independently persist `category_id`, you get two mutation paths for one column with no defined precedence — e.g., a save that races an in-flight categorize call, or a `SaveDocumentAction` that resets `category_id` to whatever stale value the edit form loaded, clobbering a categorization made in another tab/request.
+Even granting that a builder does read AD-17, "dans le même ordre que le nettoyage existant" does not say **where** in the sequence attachment-file cleanup slots in, nor whether it must happen **before** the `Document` row delete. Two compliant builders:
 
-**AD fix:** Add the missing Action to the structural seed explicitly (`UpdateDocumentAction`) and add an AD stating: "Each mutable concern of `Document` has exactly one owning Action: content/title via `UpdateDocumentAction`, `category_id` via `CategorizeDocumentAction` only. `UpdateDocumentAction` must not accept or write `category_id`."
+- **Builder A** inserts explicit attachment-file deletion as a new step between "delete preview cache" and "delete `Document` row," reading files off `$document->attachments` before the row (and any cascading pivot/FK rows) disappears.
+- **Builder B** notices that `document_attachments.document_id` is a foreign key to `documents.id`, defines it with Laravel's idiomatic `->constrained()->cascadeOnDelete()`, and reasons that AD-17's "étendue pour nettoyer aussi ces fichiers" is satisfied structurally: deleting the `Document` row (the last step, unchanged from AD-15) cascades and removes the `document_attachments` **rows**. Builder B never writes code to unlink the **physical files** on `storage/app/private/documents/{id}/attachments/`.
 
----
+Both implementations look AD-15/AD-17-compliant on a literal reading. Builder B's version permanently orphans attachment files on disk on every document deletion — precisely the class of bug AD-15 exists to prevent for the original file/images/preview cache, but the amendment failed to make equally airtight for attachments.
 
-## F4 — AD-6's own ordering is self-contradictory, and two builders resolve it in incompatible ways
-
-**Units:** an `ImportDocumentAction` implementation that calls `$document->searchable()` explicitly after `Document::create()`, vs. one that relies on Scout's automatic model-event syncing (the `Searchable` trait auto-indexes on `saved`/`created` events).
-
-**Both obey the letter of the spine:** AD-6's rule text is: "stockage du fichier → extraction de texte → indexation Scout → **création du `Document`**" — indexing is listed *before* model creation, which is impossible (Scout indexes an existing Eloquent record; there is nothing to index before the row exists). Both builders "fix" this contradiction differently while claiming AD-6 compliance: Builder A reorders in code (create → then explicit `->searchable()`), Builder B assumes AD-6's intent was "just let Scout's automatic observer handle it" and never calls anything explicit, relying on the trait.
-
-**Divergence:** If both patterns end up in the codebase (e.g., Builder A's explicit call in `ImportDocumentAction`, Builder B's implicit reliance in a later `CreateDocumentAction` or `UpdateDocumentAction`), you get one Action that double-indexes (auto event + explicit call) and another that silently depends on the trait's default queue-vs-sync config — which matters because AD-6 also demands indexing complete *synchronously within the same HTTP request*, and Scout's default `queue` config for the `Searchable` trait would violate that unless explicitly set to sync everywhere. Nothing in the spine pins `ScoutServiceProvider`/`config/scout.php`'s queue setting.
-
-**AD fix:** Rewrite AD-6's rule with the correct, non-contradictory order ("stockage → extraction → création du `Document` → indexation Scout") and add: "Scout indexing is always synchronous (`config('scout.queue') = false` / no `ShouldQueue`), and is triggered exclusively via the automatic `Searchable` model-event sync — no Action ever calls `->searchable()` manually." This closes both the ordering bug and the double-index race.
+**This is a hole to close**: AD-15's Rule text itself needs to enumerate the attachment-cleanup step explicitly (not just be extended-by-reference from AD-17), and state unambiguously "before the row/pivot rows are deleted, not relying on FK cascade for file cleanup."
 
 ---
 
-## F5 — Export failure handling: two Actions, two incompatible error-propagation shapes
+## Finding 3 (HIGH) — AD-5's "no free-text / no on-the-fly tag creation" rule has no enforcement point at the UI-component boundary
 
-**Units:** `ExportDocumentToPdfAction` (AD-11, Browsershot) vs. `ExportDocumentToWordAction` (AD-12, PhpWord).
+**ADs involved:** AD-5. **Structural Seed:** `Components/TagSelector.vue`.
 
-**Both obey the letter of the spine:** Consistency Conventions only says "jamais d'exception non catchée remontée à l'utilisateur — toujours un message explicite côté Inertia." Both a thrown-exception approach and a return-value approach satisfy that sentence.
+AD-5's Prevents/Rule clauses are explicit in prose ("jamais de création à la volée ailleurs — pas de texte libre dans le sélecteur de tags"), but this constraint is never attached to anything with a contract. `TagSelector.vue` is listed once, undifferentiated, in the shared `Components/` list — implying reuse across multiple pages/stories (the Editor save flow per FR8/FR2, and presumably an imported-document classification touchpoint per FR2's "importés et créés" scope, since AD-4 insists both `source` values share one model and the same classification properties).
 
-**Divergence:** Builder A implements `ExportDocumentToPdfAction` to throw a domain exception (`PdfExportFailedException`) on a Browsershot/Chromium failure, caught by a global `Handler.php` that converts it to an Inertia flash error. Builder B implements `ExportDocumentToWordAction` — reading AD-12's "risque assumé, message d'erreur explicite" as "the Action itself must decide the message" — to return a value object (`ExportResult{success: bool, message: ?string}`) that `DocumentController@exportWord` inspects and flashes manually. Both display an explicit message to the user, satisfying the sentence literally. But: (1) the two Controller methods now have structurally different bodies (one is a thin try/nothing pass-through, the other has an `if` on a business-meaning field, arguably violating AD-1's "no business condition in a controller" for the Word path); (2) a shared Vue error-toast/banner component reading `page.props.errors.export` (thrown-exception convention) gets nothing for the Word path if `ExportResult` was flashed under a different prop key.
+Two builders, each implementing a different story that consumes `TagSelector.vue`:
 
-**AD fix:** New AD: "All Action-level business failures (extraction, conversion, export) are reported via a single mechanism: a typed domain exception extending `App\Exceptions\BusinessException`, caught by one Inertia-aware handler that always flashes to `errors.<action_key>`. No Action returns a `success`/`message` result object; Controllers never branch on Action return values for error handling."
+- **Builder A** (Editor / created-document save story) wires it as a closed multi-select bound to a pre-fetched tag list, no creation affordance — correct per AD-5.
+- **Builder B** (imported-document tagging story, e.g. from `DocumentShow.vue` or an import modal) reuses the same component but, because nothing in the spine specifies `TagSelector.vue`'s prop contract, adds a `creatable`/`allow-create` mode (a default behavior of most tag-selector UI libraries and a natural feature request for "usage solo" convenience) — silently reintroducing free-text tag creation exactly where AD-5 forbids it, without touching any Action-level code (the violation is purely in the Vue layer, invisible to a backend-focused reviewer).
 
----
-
-## F6 — Non-CRUD document operations tempt one builder into a business-branching controller
-
-**Units:** `DocumentController` extended with a single `export(Document $document, string $format)` method vs. a hypothetical separate `DocumentExportController` with `toPdf`/`toWord` methods.
-
-**Both obey the letter of the spine:** Consistency Conventions only mandates "un controller par ressource... méthodes RESTful standard," which is a naming/shape convention, not a hard ban on extra methods, and the Capability Map already shows `DocumentController@download` as a precedent for non-RESTful additions to the resource controller.
-
-**Divergence:** Builder A, trying to stay within "one controller per resource," adds `DocumentController@export($format)` and branches internally (`if ($format === 'pdf') ExportDocumentToPdfAction::class else ExportDocumentToWordAction::class`) — this is a business decision (which conversion pipeline to run) living in a controller, a direct AD-1 violation, but AD-1's text ("aucune condition métier... sur un type") is worded around *content* logic, not *routing/dispatch* logic, so a literal-minded builder could argue it's just "picking a route handler," not "business logic." Builder B, working from the Capability Map row that lists `Actions/Document/ExportDocumentToPdfAction` and `ExportDocumentToWordAction` as siblings with independent AD numbers (AD-11 vs AD-12), infers two independent endpoints (`POST /documents/{document}/export/pdf`, `POST /documents/{document}/export/word`) and two controller methods, never a shared dispatcher. When routes/tests/UI links are written against one assumption and the Action registration against the other, either a route is missing or a controller method silently short-circuits AD-1.
-
-**AD fix:** Add explicit routing rule to AD-1: "One HTTP route (and one Controller method) per Action, with no branching between Actions inside a Controller method based on a request parameter (format, type, mode…). Format-specific operations (`export/pdf`, `export/word`) always get separate routes/methods, never a shared dispatcher method."
+Nothing in AD-5, the Capability Map, or the Structural Seed pins down that **the component itself** must never expose a create-affordance, only that "tags are managed exclusively from Configuration." The rule is airtight for the backend (no `CreateTagAction` call site outside `TagController`) but not for the frontend, where the actual UX violation would surface first.
 
 ---
 
-## F7 — Shared Inertia `categories` prop has two incompatible consumer-side shapes
+## Finding 4 (HIGH) — FR7 is double-governed by AD-5 and AD-8 with no cross-reference, inviting a second query path for tag filtering
 
-**Units:** `CategorySelector.vue` (used on import/editor forms) vs. `FilterChips.vue` (used on the Library index).
+**ADs involved:** AD-5, AD-8. **Capability Map rows:** "FR2/FR7/FR10 — Tags & filtrage" (→ AD-5) and "FR6/FR7 — Recherche & filtres" (→ AD-8, AD-9).
 
-**Both obey the letter of the spine:** Nothing in the spine defines Inertia shared-prop contracts; it only names the components in the structural seed.
+FR7 (filter by tag and by type) appears in **two separate Capability Map rows**, governed by two different ADs that never reference each other. AD-8's entire purpose is to prevent exactly two divergent query paths ("jamais deux chemins de requête codés séparément") for search-with-term vs filters-only — but AD-8 is not listed as governing the tags row, and AD-5 says nothing about how tag-based filtering is executed as a query.
 
-**Divergence:** `FilterChips.vue`'s natural implementation needs "how many documents in each category" to render useful filter counts (a common pattern for chip filters), so its author has `DocumentController@index` pass `categories` as `[{id, name, documents_count}]` (via `withCount('documents')`). `CategorySelector.vue`'s natural implementation (a plain `<select>`/combobox for choosing one category while importing) needs only `[{id, name}]`, and since import/editor pages don't need the categorized-library count, its author has whichever controller renders those pages pass a lean array. If both pages actually share one global Inertia prop (e.g. defined once in `HandleInertiaRequests::share()` so every page gets `categories` for free — a very natural DRY move given both components are cross-page), one of the two components ends up reading a field (`documents_count`) that the other code path never populates, either showing "undefined" badges or forcing an unnecessary `withCount` query on pages that never render it.
+- **Builder A**, working the "Tags" story under AD-5/AD-18, ships tag filtering as its own query surface — e.g. a scope method or a route parameter handled by a code path specific to `Tag`/`document_tag`, built and tested independently of `DocumentController@index`.
+- **Builder B**, working the "Search & filters" story under AD-8, builds `DocumentController@index` as the single entry point for term + filters, and only later discovers (or doesn't) that tag filtering was already implemented as a second, parallel path by Builder A.
 
-**AD fix:** New AD: "Every cross-page shared Inertia prop (categories, current document, flash errors) has one canonical shape, declared once as a `{Entity}Data`-shaped array in `HandleInertiaRequests::share()`, documented in the spine's Capability/Data map. Components never assume enrichment fields (counts, aggregates) beyond that canonical shape; a component needing more fetches its own page-scoped prop instead of mutating the shared one."
-
----
-
-## F8 — `DocumentSource` (and sibling enums) have no fixed namespace or backing type
-
-**Units:** an enum authored while building `ImportDocumentAction` vs. one authored while building `Document.php`/migrations.
-
-**Both obey the letter of the spine:** Consistency Conventions only says "constantes/enums nommés pour `source` (`DocumentSource::Imported`/`Created`)" — it names the enum and its cases, not its location or backing type.
-
-**Divergence:** Builder A (working top-down from Actions) creates `App\Actions\Document\DocumentSource` as a plain (non-backed) PHP enum, since it's only ever compared in-memory within Actions. Builder B (working bottom-up from the migration/model) creates `App\Models\DocumentSource` as a `string`-backed enum (`'imported'`, `'created'`) because it must round-trip through a MySQL `enum`/`varchar` column and Eloquent casts. Both satisfy the convention's literal text. When merged: two classes named `DocumentSource` in different namespaces, only one of which is actually `Document`-castable, and code that does `Document::where('source', DocumentSource::Imported)` breaks depending on which one it imported (non-backed enum has no scalar value to compare against a DB column; backed enum does). Same risk applies to the "types de fichiers, statuts" enums the same sentence calls for, which are never named or located anywhere in the spine.
-
-**AD fix:** New AD: "All domain enums live in `app/Enums/`, are `string`-backed (never bare enums) so they cast cleanly through Eloquent's `casts()`, and are named/enumerated explicitly in the spine's Consistency table (not left to 'et statuts' as a catch-all). `DocumentSource` is the only status/type enum for v1 unless a new AD adds one."
+Both builders can point to their governing AD and claim full compliance; the contradiction only exists in the seam between two Capability Map rows that were never reconciled. This is precisely the two-query-path divergence AD-8 was written to forbid, reachable without either builder violating their own cited AD.
 
 ---
 
-## F9 — AD-10's "regenerate only if source changed" has no field to check, so two implementations diverge
+## Finding 5 (MEDIUM) — FR13 capability coverage has a structural gap versus every other row
 
-**Units:** `ConvertDocumentToPreviewAction` vs. a hypothetical `Document::hasFreshPreview()` helper (or a cleanup/cron unit) that needs to answer the same question independently.
+**ADs involved:** AD-17. **Capability Map row:** "FR13 — Pièces jointes."
 
-**Both obey the letter of the spine:** AD-10 states the *policy* ("régénéré seulement si le fichier source change") but not the *mechanism*.
+Every other Capability Map row names at least a controller/method (`DocumentController@store`, `DocumentController@download`, `DocumentController@index`, `TagController`). The FR13 row names only two Actions and a Model — no controller, no route, no Form Request, no DTO. The Structural Seed confirms this isn't an omission of convenience: `Http/Controllers/` lists only `DocumentController.php` and `TagController.php` (no `AttachmentController`), `Http/Requests/` lists only `ImportDocumentRequest.php` and `SaveDocumentRequest.php` (nothing for attachments), and `DataTransferObjects/` lists only `DocumentData.php`/`TagData.php` (no `AttachmentData.php`) — yet AD-3 requires every Action to take a typed DTO.
 
-**Divergence:** Builder A implements the check inside `ConvertDocumentToPreviewAction` itself by comparing filesystem mtimes: `Storage::lastModified($originalPath) > Storage::lastModified($previewPath)`. Builder B, needing the same "is the preview stale?" answer elsewhere (e.g., `PreviewPanel.vue`'s parent page deciding whether to show a "generating…" state, or a future disk-cleanup command), adds a `documents.preview_generated_at` timestamp column and compares it to `documents.updated_at` — a column that doesn't exist anywhere in AD-10, AD-4, or the structural seed's migrations. Now there are two sources of truth for preview freshness that can disagree (e.g., a file overwritten directly on disk without touching `updated_at` looks stale to Builder A's check but fresh to Builder B's).
+- **Builder A** adds `attachFile`/`detachFile` methods to `DocumentController`, treating attachments as a sub-concern of the document resource.
+- **Builder B**, applying the Consistency Conventions rule "un controller par ressource... méthodes RESTful standard," reads `document_attachments` as its own resource and creates a dedicated `DocumentAttachmentController` with `store`/`destroy`.
 
-**AD fix:** Tighten AD-10: "Preview staleness is determined exclusively by comparing `Storage::lastModified()` of the source file against the cached preview file's mtime — no additional staleness column is ever added to `documents`. Any code needing to know preview freshness calls a single `Document::previewIsStale(): bool` method that wraps this filesystem check; it is never reimplemented."
-
----
-
-## F10 — No AD settles soft-delete vs. hard-delete, so `DeleteDocumentAction` and the Scout/search path disagree
-
-**Units:** `DeleteDocumentAction` vs. `Document::search()` (AD-8) / any query built on the `Searchable` trait's default index-sync behavior.
-
-**Both obey the letter of the spine:** AD-7 only names the storage path to remove; AD-8 only says fulltext search must go through Scout. Neither states whether `documents` rows are ever soft-deleted.
-
-**Divergence:** Builder A implements `DeleteDocumentAction` as a hard delete (`$document->delete()` with no `SoftDeletes` trait), reasoning that a mono-user local tool has no "trash/restore" requirement anywhere in the FR list, and doesn't worry about stale index entries since deleting the row also fires the `deleted` model event Scout listens to. Builder B, defensively following "erreurs métier ne doivent jamais planter silencieusement" and wanting an undo safety net for the only human using the tool, adds `SoftDeletes` to `Document` and writes `DeleteDocumentAction` to just set `deleted_at`. Under Builder B's version, Scout's default behavior differs (a soft-deleted, `Searchable` model is *not* automatically removed from the index unless `search.soft_delete` config is explicitly enabled), so soft-deleted documents remain fully searchable and clickable in `Library.vue` results unless every query elsewhere (index listing, category counts, `FilterChips.vue` badge counts) remembers to add `withoutTrashed()` — which nothing in the spine mandates.
-
-**AD fix:** New AD: "`Document` deletion is a hard delete; `SoftDeletes` is never used on `Document` in v1 (no restore/undo requirement exists). `DeleteDocumentAction` is the only place a `documents` row is destroyed, and it must also remove the row's Scout index entry and its cached preview file (see F11) in the same call."
+Both are defensible readings of the existing conventions; the spine simply never picked one, unlike every other capability it defines.
 
 ---
 
-## F11 — Category deletion has no owning Action and an unspecified business rule
+## Finding 6 (MEDIUM) — AD-17 has no stated guard restricting attachments to `source = created` documents
 
-**Units:** `CategoryController@destroy` (implied by the RESTful-methods convention) vs. a hypothetical `DeleteCategoryAction` a second builder adds for consistency with the Document domain.
-
-**Both obey the letter of the spine:** The structural seed's `Actions/Category/` list contains only `CreateCategoryAction` — no delete action is named anywhere, and Consistency Conventions mandates `destroy` as one of the RESTful methods every controller must expose.
-
-**Divergence:** Builder A, following the seed literally (no `DeleteCategoryAction` exists to call), writes the deletion logic directly in `CategoryController@destroy` — including the business decision of what happens to documents currently pointing at that category (null out `category_id`, per AD-5's "NULL = non classé, jamais bloquant," or block the deletion if any document references it). That decision, made inline in a controller, violates AD-1's "no business condition in a controller." Builder B, applying AD-2's naming convention by analogy, creates `DeleteCategoryAction` and makes the *opposite* business call (blocks deletion with a validation error if `documents_count > 0`, reasoning that silent reclassification to "Non classé" is data loss). Neither behavior is specified by the spine, so the two are simply different, incompatible products depending on who happened to write the delete path first.
-
-**AD fix:** Add `DeleteCategoryAction` to the structural seed explicitly, and add a rule to AD-5: "Deleting a category always sets `documents.category_id` to `NULL` for every affected document (never blocks on `documents_count`), performed by `DeleteCategoryAction` — `CategoryController@destroy` never deletes a `Category` row directly."
+**ADs involved:** AD-17, AD-4, AD-7. FR13's descriptive text ("à un document créé") implies the restriction, but AD-17's Rule itself places no constraint on `AttachDocumentFileAction` beyond the storage path convention. An imported document already has its own `file_path` (AD-4/AD-7); nothing in AD-17 states whether attaching a second file to an *imported* document is disallowed, silently permitted, or an error. A builder could implement the Action generically (no `source` check) since nothing in AD-2/AD-17 forbids it, while UI-layer builders assume (correctly, per FR13's prose, but not per any Rule text) that the affordance only ever appears on created-document pages — leaving the backend permissive where the product intent is restrictive.
 
 ---
 
-## F12 — AD-7's path template doesn't say whether filenames are sanitized, so writer and reader disagree
+## Finding 7 (LOW) — No rule for a tag deleted mid-session from a stale selector
 
-**Units:** `ImportDocumentAction` (writes to `storage/app/private/documents/{document_id}/{filename}`) vs. `DocumentController@download` / `ConvertDocumentToPreviewAction` (both must reconstruct that same path to read the file back).
-
-**Both obey the letter of the spine:** AD-7 gives the path template verbatim with a literal `{filename}` placeholder and says nothing about sanitization.
-
-**Divergence:** Builder A implements storage using the client's original filename as uploaded (`Rapport annuel (v2) — été.pdf`), since AD-7's template implies "the filename" is just... the filename, and MySQL/the filesystem on Windows-via-Herd will accept it. Builder B, implementing `ConvertDocumentToPreviewAction`'s shell-out to `soffice --headless --convert-to pdf` (AD-10), reasonably slugifies/ASCII-sanitizes the filename before building the CLI argument (spaces, parentheses, and em-dashes are common sources of shell-quoting bugs), producing `rapport-annuel-v2-ete.pdf` as the expected source path — which never exists on disk because Builder A never sanitized on write. The download route, written by a third path, might pick a third convention (store `filename` in the DB column and always use *that* string verbatim, sidestepping sanitization) — three implicit conventions for one placeholder.
-
-**AD fix:** Tighten AD-7: "`{filename}` is always the slugified, ASCII-only, extension-preserved form of the original upload name, computed once in `ImportDocumentAction` and persisted verbatim in `documents.file_path`; every other unit (preview conversion, download) reads `documents.file_path` directly and never reconstructs the path from `documents.id` + a recomputed filename."
+**ADs involved:** AD-5, AD-18. Tags can be deleted at any time from Configuration (AD-18), detaching pivot rows. Nothing addresses what happens when a `Document`-save request (Editor autosave, or the pivot-write path from Finding 1) arrives carrying a tag ID that was deleted after the page loaded — FK violation surfaced as an uncaught exception, silent drop of the missing ID, or a validation error are all live, unaddressed choices, and the "jamais d'exception non catchée" convention (Consistency Conventions § État & transverse) doesn't by itself dictate which of the non-exception behaviors to pick.
 
 ---
 
-## F13 — AD-8 doesn't say how fulltext search and category/source filters compose, so combined queries diverge
+## Non-finding: AD-16 removal hygiene
 
-**Units:** the code path triggered by `SearchBar.vue` (a search term present) vs. the code path triggered by `FilterChips.vue` alone (category/source filter, no search term) inside `DocumentController@index`.
-
-**Both obey the letter of the spine:** AD-8 only forbids ad hoc `LIKE` for *fulltext* search; it says nothing about plain attribute filtering, which isn't fulltext at all.
-
-**Divergence:** Builder A, handling the "search term present" case, naturally writes `Document::search($term)->where('category_id', $categoryId)->query(fn($q) => $q->with('category'))->paginate()`, using Scout's `database`-driver query hook. Builder B, handling "no search term, category filter only" (a very common state — e.g., landing on the Library page with a category selected and empty search box), sees no fulltext need and writes plain `Document::query()->where('category_id', $categoryId)->with('category')->paginate()`. These two paths, both individually AD-8-compliant, differ in pagination page-size defaults if not both configured identically, in whether `with('category')` is remembered on both branches, and in sort order (Scout's `database` driver ranks by match relevance by default; plain Eloquent needs an explicit `orderBy`) — so the same category filter produces differently-ordered results depending on whether a search box happens to be empty, which reads as a bug to the sole user even though each branch individually followed AD-8 to the letter.
-
-**AD fix:** New AD: "`DocumentController@index` always builds its query through `Document::search($term ?? '')`, even with an empty term (Scout's `database` driver treats an empty search as `LIKE '%%'`/match-all), so filters, eager loads, sorting, and pagination pass through exactly one code path regardless of whether a search term is present."
-
----
-
-## F14 — Date formatting is required in French but has no shared implementation, so components format inconsistently
-
-**Units:** `DocumentCard.vue` (Library grid) vs. `DocumentShow.vue` (document detail page).
-
-**Both obey the letter of the spine:** Consistency Conventions only says "formatage en français côté Vue" — it names the language, not the format or the mechanism.
-
-**Divergence:** Builder A, writing the compact `DocumentCard.vue`, uses `new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' }).format(...)` inline, producing `31 août 2026`. Builder B, writing `DocumentShow.vue`'s "imported on / last modified" fields, reaches for a small helper it writes locally (`formatDate(d) => d.split('-').reverse().join('/')`), producing `31/08/2026`. Both are "French," both satisfy the convention's literal text, but the same underlying `documents.updated_at` timestamp now renders in two different formats depending on which page you're looking at — and if the sole user later asks for a third format (relative time, "il y a 2 jours"), there's no single place to change it.
-
-**AD fix:** New AD: "All timestamp display goes through one shared composable, `resources/js/composables/useFrenchDate.ts`, exporting a single `formatDate(iso: string, style?: 'short'|'medium'|'long')` function. No component calls `Intl.DateTimeFormat` or hand-rolls date string manipulation directly."
+Checked explicitly per the review brief: the Capability Map, Structural Seed, and every other AD's Rule/Prevents text were searched for `category_id`, `Category`, `CategorizeDocumentAction`, and `DeleteCategoryAction`. The only surviving references are the intentional historical pointers inside AD-5's Changelog and AD-16's own stub, plus one comparative mention inside AD-18 ("même discipline que l'ancien `DeleteCategoryAction` (désormais retiré, voir AD-5)") — all correctly framed as removed, not live. No contradiction found here; this part of the amendment is clean.
 
 ---
 
 ## Summary Table
 
-| # | Units in conflict | Divergence in one line |
+| # | Finding | Severity |
 | --- | --- | --- |
-| F1 | `ImportDocumentAction` vs. editor-save Action | Both build `DocumentData` but need incompatible field sets — no per-Action DTO required |
-| F2 | `CategorizeDocumentAction` vs. `CreateCategoryAction` | Two possible creators of a `categories` row (inline upsert vs. dedicated Action) |
-| F3 | `CategorizeDocumentAction` vs. missing `UpdateDocumentAction` | Two Actions can both write `category_id`, no ownership rule, no such Action even listed |
-| F4 | Explicit `->searchable()` vs. automatic Scout event sync | AD-6's stated order (index → then create) is impossible; builders resolve it two different ways, risking double-index or async leakage |
-| F5 | `ExportDocumentToPdfAction` (throws) vs. `ExportDocumentToWordAction` (returns result object) | Two incompatible error-propagation contracts, one of which pushes a business `if` back into the controller |
-| F6 | Polymorphic `DocumentController@export($format)` vs. separate export controller | Format-branching in a controller quietly violates AD-1 while looking like routing, not logic |
-| F7 | `CategorySelector.vue` vs. `FilterChips.vue` | Same shared `categories` prop, one expects `documents_count`, the other doesn't produce it |
-| F8 | Enum authored top-down (Actions) vs. bottom-up (Model/migration) | Two `DocumentSource` classes, different namespace and backing type, only one DB-castable |
-| F9 | mtime-based staleness check vs. a `preview_generated_at` column | AD-10's "only if source changed" has two disagreeing implementations of "changed" |
-| F10 | Hard-delete `DeleteDocumentAction` vs. `SoftDeletes` + Scout | Soft-deleted docs stay searchable/visible unless every query remembers `withoutTrashed()` — nothing mandates it |
-| F11 | Delete logic inline in `CategoryController@destroy` vs. a new `DeleteCategoryAction` | No Action is named for category deletion, and the null-out-vs-block business rule is undecided |
-| F12 | Raw filename on write vs. sanitized filename on read (preview/download) | AD-7's `{filename}` placeholder has no sanitization rule, so writer and readers can disagree on the actual path |
-| F13 | Search-term index path (`Document::search()`) vs. filter-only path (`Document::query()->where()`) | Same "index" feature silently forks into two query builders with different sort/eager-load/pagination defaults |
-| F14 | `DocumentCard.vue` vs. `DocumentShow.vue` date formatting | "French formatting" has no shared implementation, so the same timestamp renders differently on two pages |
+| 1 | No named owner for `document_tag` writes; full-replace (`sync`) vs incremental (`attach`/`detach`) paths collide | Critical |
+| 2 | AD-15 not amended in its own text; attachment-cleanup ordering ambiguous; FK cascade can silently skip file deletion | Critical |
+| 3 | AD-5 "no free text" rule unenforced at `TagSelector.vue`'s component boundary, reused across stories with no prop contract | High |
+| 4 | FR7 double-governed by AD-5 and AD-8 with no cross-reference — invites a second, forbidden query path | High |
+| 5 | FR13 Capability Map/Structural Seed missing controller, route, Request, and DTO — every other row has these | Medium |
+| 6 | AD-17 has no rule restricting attachments to `source = created` documents | Medium |
+| 7 | No rule for a stale/deleted tag ID arriving in a save request | Low |

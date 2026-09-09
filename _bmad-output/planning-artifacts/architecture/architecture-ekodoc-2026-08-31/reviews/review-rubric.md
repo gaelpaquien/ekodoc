@@ -1,69 +1,72 @@
 ---
-title: Review — ARCHITECTURE-SPINE.md (rubric pass)
-reviewed: '_bmad-output/planning-artifacts/architecture/architecture-ekodoc-2026-08-31/ARCHITECTURE-SPINE.md'
-reviewer: rubric checklist (good-spine)
-date: 2026-08-31
+title: Rubric Review — ARCHITECTURE-SPINE.md (post sprint-change-proposal-2026-09-09)
+reviewed: 2026-09-09
+target: architecture-ekodoc-2026-08-31/ARCHITECTURE-SPINE.md
+inputs:
+  - sprint-change-proposal-2026-09-09.md (§4 Architecture)
+  - architecture-ekodoc-2026-08-31/.memlog.md (last ~20 entries)
+  - prds/prd-ekodoc-2026-08-31/prd.md (current, updated 2026-09-09)
+verdict: NOT READY for Epic 3 story breakdown — one critical divergence point (FR13/FR6 attachment search + per-attachment download/preview) is entirely unaddressed by any AD.
 ---
 
-# Review — EkoDoc Architecture Spine
+# Rubric Review — ARCHITECTURE-SPINE.md
 
 ## Verdict
 
-Solid, mostly enforceable spine that correctly resolves the PRD's three open questions (classification model, search engine, format scope), but it leaves one PRD-critical content-model decision — how inline editor images are stored and referenced across import/export — completely undecided, and it doesn't govern deletion cleanup across the three subsystems (disk, search index, preview cache) it created.
+The tags/AD-16-removal/AD-18 edits themselves are clean, faithful to the sprint-change-proposal, and internally consistent — but the spine was reconciled against the *proposal's* draft wording for AD-17, not against the PRD's **final, more detailed FR13 text** (which already exists in the current `prd.md`, updated same day). That final FR13 adds two concrete requirements — individual preview/download per attachment, and fulltext indexing of attachment content "au même titre qu'un document importé" (echoed in the updated FR6) — that no AD, no Capability Map row, and no Structural Seed entry currently covers. This is exactly the kind of divergence point two builders would resolve differently. Everything else checked out.
 
-## Findings by checklist item
+## Rubric walk
 
-### 1. Fixes the real divergence points for the level below
+| # | Rubric item | Result |
+|---|---|---|
+| 1 | Fixes real divergence points for the level below, misses none | **FAIL** — see Critical finding (FR13/FR6 attachment search + per-attachment download route) |
+| 2 | Every AD's Rule is enforceable and prevents its stated divergence | PASS for AD-5/AD-16/AD-18. **PARTIAL** for AD-17: Binds FR13 in full, but its Prevents/Rule only cover the storage-path half of FR13, not the search-indexing/download half — the AD claims a scope it doesn't fully police |
+| 3 | Nothing under Deferred could let two units diverge silently | **FAIL** — the attachment-search-indexing question isn't in Deferred either; it's just absent, i.e. silently dropped rather than explicitly deferred |
+| 4 | Named tech is verified-current, no stale category/tag tech claim | PASS — no new library introduced for tags/attachments (plain table + pivot), Stack table untouched and correctly so |
+| 5 | No leftover `category`/`Category`/`category_id`/`CategorizeDocumentAction`/`CategoryController`/`CategorySelector` outside AD-5's changelog and AD-16's removal note | **MOSTLY PASS, one leak** — `DeleteCategoryAction` is named in AD-18's Rule (line 155), a third location outside the two permitted ones |
+| 6 | Capability Map / Structural Seed match AD text exactly, no orphans, FR13/FR14 present | **MOSTLY PASS** — FR13/FR14 rows exist and are correct as far as they go; FR3 row is stale (see Medium finding); no orphaned category rows remain |
+| 7 | Every dimension the altitude owns is still decided/deferred/open | **FAIL** — attachment search-indexing dimension dropped (same as #3) |
+| 8 | Sprint-change-proposal wording for AD-5/AD-17/AD-18 faithfully carried | PASS — all three are near-verbatim, no constraint dropped *relative to the proposal's own text*. The gap is that the proposal's own AD-17 draft was already thinner than the PRD's final FR13 by the time the spine was finalized, and nothing reconciled the two |
 
-- **[CRITICAL] No AD governs where/how inline editor images (FR9) are stored or referenced.** AD-7 covers only the original imported file; AD-4/AD-11/AD-12 assume `content_html` exists but never say how images inserted via the TipTap toolbar (or drag-drop) end up represented inside it. Two builders could independently and both "correctly" choose: (a) base64 data URIs embedded directly in `content_html`, or (b) separate files under a disk path + an `<img src>` pointing at an app route. These are not interchangeable: they have different storage-growth, backup, and — critically — export-fidelity consequences for Browsershot (AD-11, needs to resolve the image at render time) and PHPWord (AD-12, needs the raw bytes to embed in OOXML). NFR5 explicitly calls image position/rendering fidelity "critique, pas secondaire," and Flow 3's climax in EXPERIENCE.md is built entirely around this working. This is the single most load-bearing content-model decision FR9/NFR5 depend on, and it is silent. The Structural Seed also has no controller/route for image upload, confirming the gap.
-  - *Fix:* Add an AD (e.g. "AD-14 — Images éditeur : fichier privé + route de service, jamais base64") that picks one storage strategy, states the path convention (reusing the AD-7 pattern: private disk + streaming route, or the DB-embedding tradeoff explicitly), and states how AD-11/AD-12 resolve that reference at export time.
+## Findings
 
-- **[HIGH] `DeleteDocumentAction` is named in the Structural Seed but has no governing AD.** Deleting a `Document` touches three subsystems this spine itself created: the file on private disk (AD-7), the Scout index entry (AD-8), and the cached preview PDF (AD-10). Nothing states that delete must cascade to all three. Two builders could diverge: one deletes only the DB row (leaving orphaned files and a stale, dead search hit for FR6), another cleans up everything. In a tool with no admin/cleanup surface, an orphan-accumulating implementation is a real long-term defect, and a stale search result returning a 404 on click is a visible regression against FR6/FR7.
-  - *Fix:* Add a short Rule (either as a note under AD-7/AD-8/AD-10's "Rule" text, or its own AD) stating `DeleteDocumentAction` must remove the disk file, the cached preview if present, and the Scout index entry (via model deletion, which Scout syncs automatically) in one transaction/operation.
+### CRITICAL — AD-17 does not cover FR13's search-indexing and per-attachment access requirements
 
-- **[MEDIUM] FR4 preview rendering for `source = created` documents is not mapped.** The Capability → Architecture Map ties FR4 solely to `ConvertDocumentToPreviewAction` (AD-10), which is explicitly scoped to `source = imported` + Word/Excel mime types. But FR4 and the Fiche document surface (EXPERIENCE.md) apply to both imported and created documents. What renders in the preview panel for a created document is presumably just the stored `content_html`, but that's an inference, not a stated decision — and it interacts with the same image-reference question raised above (finding 1).
-  - *Fix:* Add one line to AD-10 or the Capability map clarifying that `source = created` documents render their stored `content_html` directly in the Fiche document preview panel (no conversion step), closing the FR4 mapping for both branches of `source`.
+The current `prd.md` (already updated 2026-09-09, same day as this spine) states:
 
-### 2. Every AD's Rule is enforceable and actually prevents its stated divergence
+> **FR13** — ... ajout, prévisualisation/téléchargement individuel et retrait d'une pièce jointe, sans affecter le contenu de l'éditeur. Le contenu de chaque pièce jointe est indexé pour la recherche fulltexte (FR6) au même titre qu'un document importé (FR1).
+> **FR6** — Rechercher en fulltexte sur le contenu des documents (importés et créés, **pièces jointes incluses — FR13**) ...
 
-- No findings for AD-1 through AD-9, AD-11, AD-12, AD-13 — each names a concrete, checkable constraint (single table, no queue, disk visibility, search entry point, naming pattern, library choice) that two independent builders would satisfy identically.
-- **[LOW] AD-10's cache-invalidation trigger is underspecified and possibly speculative.** "Régénéré seulement si le fichier source change" doesn't say what change-detection mechanism to use (mtime, hash, version column), and no FR in the PRD allows replacing an already-imported file post-import — so the condition may never actually fire in v1. As written, if this scenario is ever hit, two builders would diverge on the detection mechanism.
-  - *Fix:* Either state the mechanism explicitly (e.g. compare `filemtime()` of the source against the preview's, or drop the "regenerate on change" clause entirely and say "generated once, cached forever — regeneration policy is Deferred until an update-file flow exists").
+AD-17 (spine lines 145–149) binds FR13 but its Rule only specifies: table `document_attachments` (id, document_id, file_path, original_filename, mime_type, timestamps), private storage path, and `AttachDocumentFileAction`/`DetachDocumentFileAction`. It says nothing about:
 
-### 3. Nothing under "Deferred" could let two units diverge in a way that matters before it's revisited
+- **Extraction/indexing**: no `extracted_text`/`extraction_status` column on `document_attachments`, no job wiring, no statement of whether attachment text is (a) merged into the parent `Document.extracted_text`, (b) indexed as its own Scout-searchable row, or (c) something else. AD-8 ("un unique point d'entrée... le champ indexé est `extracted_text`... pas les colonnes de métadonnées") and AD-9 (extraction pipeline) were not extended to mention attachments at all — their Binds lists (`FR6, FR7, NFR2` and `FR1, FR6, FR10` respectively) don't even include FR13.
+- **Per-attachment preview/download**: AD-7 governs downloads but is explicitly bound to FR5 only ("original files"); nothing gives attachments a download/preview route. Structural Seed's `Http/Controllers/` section lists only `DocumentController.php` and `TagController.php` — no attachment route/controller method appears anywhere (Capability Map's FR13 row lists only `AttachDocumentFileAction`/`DetachDocumentFileAction`/`Models/DocumentAttachment`, no read-side access at all).
 
-- No findings. Backup, legacy formats, auth/multi-user, semantic search, and deployment-beyond-local are all genuinely inert in v1 (no code path exists yet for any of them to diverge on), and each carries a concrete trigger condition for revisiting.
+This is not a hypothetical edge case — it's two concrete, PRD-mandated behaviors with zero architectural decision behind them. Two builders implementing the Epic 3 attachment stories will independently invent: where attachment text lives, whether search results surface "found in an attachment," and how download/preview is routed. That's precisely the class of divergence AD-17 exists to prevent, and its Prevents clause doesn't even claim to address it. It also isn't logged in Deferred, so it isn't a documented open question — it simply isn't there.
 
-### 4. Named tech is verified-current
+**Recommendation**: extend AD-17 (or add AD-19) before Epic 3 story breakdown: decide whether `document_attachments` gets its own `extracted_text`/`extraction_status` (and whether `DocumentAttachment` becomes independently `Searchable`, or its text rolls into the parent `Document`), reuse or fork `ExtractDocumentTextJob` for attachments, and name the controller/route for per-attachment preview/download (likely `DocumentController@downloadAttachment` alongside AD-7's existing pattern). Update AD-8/AD-9 Binds to include FR13, and add the corresponding Capability Map row and Structural Seed entries (Jobs/, Http/Controllers/).
 
-- No findings. PHP 8.5 / Laravel 13 / Inertia 2.x / Tailwind 4.x / TipTap 3.x are all consistent with a mid/late-2026 timeline, and the two lower-confidence dependencies (`spatie/browsershot` 5.4, `smalot/pdfparser` 2.12.4) are both marked with an explicit verification date and, for pdfparser, an explicit maintenance-risk callout with a designed-in fallback (AD-9). This is good practice, not a gap.
+### HIGH — Missing DTO for attachment Actions in Structural Seed
 
-### 5. Every dimension the altitude owns is decided, deferred, or an open question
+AD-3 mandates every Action receive a typed `readonly` DTO, never an array/`Request`. The `DataTransferObjects/` block in Structural Seed (lines 214–216) lists only `DocumentData.php` and `TagData.php` — no DTO is named for `AttachDocumentFileAction`/`DetachDocumentFileAction`. This is a small, mechanical gap (a level-below builder must guess the DTO's name, e.g. `AttachmentData.php` vs. `DocumentAttachmentData.php`) but it's exactly the kind of naming divergence AD-3/Consistency Conventions exist to close off.
 
-- **[MEDIUM] Testing enforcement is stated as an absolute but has no enforcement mechanism, and this tension is internal to the document.** Consistency Conventions states "100% de couverture de tests (Pest)" as a flat rule, while the Deferred section explicitly states no CI/CD is defined for v1 ("Aucune configuration de ... CI/CD ... n'est définie"). Without CI, "100% coverage" is not an invariant — it's an aspiration that will erode silently the first time a builder skips a test under time pressure, with nothing in the architecture to catch it.
-  - *Fix:* Either soften the convention ("tests required for all Actions; coverage is not gated" ) or add a one-line Deferred/Consistency note that coverage is self-enforced only, pending any future CI.
-- Operational/environmental envelope (deployment, infra, ops) is explicitly and adequately addressed: Deferred states v1 is single-machine Herd-only with no staging/CI/hosting, consistent with NFR1. This is a correct, non-silent decision for this dimension — no finding.
+### MEDIUM — Capability Map's FR3 row is stale relative to the new FR3 text
 
-### 6. No bloat/overspecification
+Current PRD FR3: "titre, type, **tags**, date d'ajout." The Capability Map row `FR3 — Métadonnées | Models/Document | AD-4` (line 163) still points only to AD-4 (the single-`documents`-table decision), not to AD-5, even though "tags" — now explicitly part of FR3's metadata list — is governed by AD-5's `tags`/`document_tag` pivot, not by a column on `documents`. A builder consulting only the FR3 row could reasonably (and wrongly) model tags as a column rather than the pivot relation AD-5 mandates.
 
-- No findings beyond the AD-10 cache-trigger note already logged in item 2. The rest of the spine stays at invariant altitude (naming patterns, storage boundaries, library choices) without dictating method bodies, variable names, or other code-level "seed" detail dressed up as architecture.
+### MEDIUM — `DeleteCategoryAction` named outside the two permitted history locations
 
-### 7. Section shape matches template order
+AD-18's Rule (line 155) reads: "...même discipline que l'ancien `DeleteCategoryAction` (désormais retiré, voir AD-5)." The rubric's consistency rule allows leftover mentions of the retired category concept only in AD-5's changelog and AD-16's removal note (both explicitly historical). This third mention is harmless in intent (it's explaining continuity of a deletion-safety discipline) and does cross-reference AD-5, but it technically leaks the retired name into a forward-looking, `[ADOPTED]` AD's Rule text. Consider rephrasing AD-18 to state the discipline standalone ("détache sans jamais supprimer les documents, cohérent avec AD-15") without naming the retired Action.
 
-- No findings. Order is Design Paradigm → Invariants & Rules → Consistency Conventions → Stack → Structural Seed → Capability → Architecture Map → Deferred, matching the template (no "Inherited Invariants" section is needed since there is no parent-level architecture above this one to inherit from).
+### LOW — AD-17 doesn't constrain attachment file types
 
-### 8. Diagrams are valid and non-empty
+FR13 restricts attachments to "PDF, Word, Excel," matching FR1's import formats. AD-17's Rule stores whatever `mime_type` is given with no validation rule stated (likely intended to live in a Form Request, which the spine wouldn't normally itemize) — but since AD-17's Prevents clause is silent on this dimension too, it's worth a one-line addition (e.g., "mêmes formats acceptés que FR1") so the constraint is traceable to an AD rather than assumed.
 
-- No findings on validity — the single `graph LR` (Controller → DTO/Action → Model → Controller) is syntactically valid and does carry real structure (the paradigm's data/control flow), not decoration.
-- **[LOW, optional]** It is the only diagram in the document. The import → extract → index → preview → export pipeline spans five ADs (AD-6, AD-9, AD-10, AD-11, AD-12) with different synchronous/on-demand/cached behaviors per stage; a short sequence or flow diagram for that pipeline would make the lifecycle easier to hold in one view. Not required by the checklist (one valid, structural diagram already satisfies it), but worth considering given the pipeline's complexity relative to the rest of the spine.
+## Non-findings (checked, no issue)
 
-## Summary table
-
-| # | Finding | Severity |
-| --- | --- | --- |
-| 1 | Editor inline-image storage/reference model undecided | Critical |
-| 2 | `DeleteDocumentAction` cleanup across disk/index/preview cache ungoverned | High |
-| 3 | FR4 preview rendering for `source = created` not mapped | Medium |
-| 4 | "100% test coverage" stated with no enforcement mechanism (CI deferred) | Medium |
-| 5 | AD-10 cache-invalidation trigger underspecified / possibly speculative | Low |
-| 6 | Single diagram; a pipeline diagram for the multi-AD import/export flow would help | Low (optional) |
+- Stack table: no new/changed technology from this change; no stale claims slipped in for tags/attachments.
+- AD-5, AD-16, AD-18 text: faithfully carries the sprint-change-proposal's wording, no dropped constraints.
+- Structural Seed: `Category.php`, `CategoryController.php`, `Actions/Category/`, `CategoryData.php`, `CategorySelector.vue` all correctly absent; `Tag.php`, `TagController.php`, `Actions/Tag/`, `TagData.php`, `TagSelector.vue`, `Configuration.vue`, `document_tag`, `document_attachments`, and the attachments storage path are all correctly present.
+- AD-16: ID correctly retired (marked `[REMOVED 2026-09-09]`, Binds/Prevents/Rule all "—"), not reused.
+- No orphaned category rows remain in the Capability Map.
+- `.memlog.md` entries are consistent with the spine's final state — no undocumented decision.

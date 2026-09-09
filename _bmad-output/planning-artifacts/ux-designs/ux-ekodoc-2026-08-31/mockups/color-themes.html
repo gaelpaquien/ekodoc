@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>EkoDoc — Variations palette (lime accent)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+    background: #f0f0ee;
+    color: #1a1a1a;
+    padding: 32px;
+  }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .intro { font-size: 14px; color: #555; margin-bottom: 28px; max-width: 720px; }
+  .variation { margin-bottom: 48px; }
+  .variation-header { margin-bottom: 4px; }
+  .variation-header h2 { font-size: 17px; }
+  .variation-header .register { font-size: 13px; color: #666; font-style: italic; margin-bottom: 10px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .chip {
+    font-size: 11px; padding: 3px 8px; border-radius: 4px;
+    background: #e2e2de; color: #333; font-family: monospace;
+  }
+  .panels { display: flex; gap: 20px; flex-wrap: wrap; }
+  .panel {
+    width: 420px; border-radius: 10px; overflow: hidden;
+    border: 1px solid #ccc; box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  .panel-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+    padding: 6px 12px; font-weight: 600;
+  }
+  .app { display: flex; height: 260px; }
+  .sidebar { width: 130px; padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; }
+  .nav-item {
+    font-size: 13px; padding: 7px 10px; border-radius: 6px; cursor: default;
+  }
+  .main { flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .btn {
+    align-self: flex-start; font-size: 12px; font-weight: 600;
+    padding: 7px 14px; border-radius: 8px; border: none;
+  }
+  .doc-row {
+    display: flex; align-items: center; gap: 8px; padding: 9px 10px;
+    border-radius: 8px; font-size: 12px;
+  }
+  .doc-title { flex: 1; font-weight: 500; }
+  .tag { font-size: 10px; padding: 2px 7px; border-radius: 9px; }
+  .filetype { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+</style>
+</head>
+<body>
+
+<h1>EkoDoc — Variations de palette (accent lime néon)</h1>
+<p class="intro">4 variations pour trancher la température du gris (l'accent lime néon est déjà verrouillé). Chaque variation montre clair + sombre côte à côte, avec un aperçu réaliste : sidebar (Bibliothèque / Recherche / Configuration), liste de documents avec tags, bouton primaire "Importer".</p>
+
+<!-- ============ VARIATION 1 : Neutre ============ -->
+<!--
+  V1 — Neutre + lime néon
+  Light: bg #F4F4F2 · surface #EAEAE7 · border #D8D8D4 · fg #1C1C1A · muted #6B6B67
+  Dark:  bg #1B1B1A · surface #232322 · border #333331 · fg #ECECE9 · muted #9C9C97
+  Accent: #C6FF00 (fg on accent #12130A) both modes
+-->
+<div class="variation">
+  <div class="variation-header">
+    <h2>1 — Neutre</h2>
+    <div class="register">Gris sans dominante — le choix le plus sûr, "outil interne sobre" sans parti pris de teinte.</div>
+  </div>
+  <div class="chips">
+    <span class="chip">accent #C6FF00</span>
+    <span class="chip">bg (L) #F4F4F2</span>
+    <span class="chip">surface (L) #EAEAE7</span>
+    <span class="chip">bg (D) #1B1B1A</span>
+    <span class="chip">surface (D) #232322</span>
+  </div>
+  <div class="panels">
+    <div class="panel">
+      <div class="panel-label" style="background:#EAEAE7;color:#6B6B67;">Clair</div>
+      <div class="app" style="background:#F4F4F2;color:#1C1C1A;">
+        <div class="sidebar" style="background:#EAEAE7;border-right:1px solid #D8D8D4;">
+          <div class="nav-item" style="background:#C6FF00;color:#12130A;font-weight:600;">Bibliothèque</div>
+          <div class="nav-item">Recherche</div>
+          <div class="nav-item">Configuration</div>
+        </div>
+        <div class="main">
+          <button class="btn" style="background:#C6FF00;color:#12130A;">Importer</button>
+          <div class="doc-row" style="background:#EAEAE7;">
+            <span class="filetype" style="background:#D8D8D4;color:#6B6B67;">PDF</span>
+            <span class="doc-title">Procédure export compta.pdf</span>
+            <span class="tag" style="background:#D8D8D4;color:#1C1C1A;">Finance</span>
+          </div>
+          <div class="doc-row" style="background:#F4F4F2;border:1px solid #D8D8D4;">
+            <span class="filetype" style="background:#D8D8D4;color:#6B6B67;">DOC</span>
+            <span class="doc-title" style="color:#6B6B67;">Onboarding équipe.docx</span>
+            <span class="tag" style="background:#C6FF00;color:#12130A;">Procédures</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-label" style="background:#232322;color:#9C9C97;">Sombre</div>
+      <div class="app" style="background:#1B1B1A;color:#ECECE9;">
+        <div class="sidebar" style="background:#232322;border-right:1px solid #333331;">
+          <div class="nav-item" style="background:#C6FF00;color:#12130A;font-weight:600;">Bibliothèque</div>
+          <div class="nav-item">Recherche</div>
+          <div class="nav-item">Configuration</div>
+        </div>
+        <div class="main">
+          <button class="btn" style="background:#C6FF00;color:#12130A;">Importer</button>
+          <div class="doc-row" style="background:#232322;">
+            <span class="filetype" style="background:#333331;color:#9C9C97;">PDF</span>
+            <span class="doc-title">Procédure export compta.pdf</span>
+            <span class="tag" style="background:#333331;color:#ECECE9;">Finance</span>
+          </div>
+          <div class="doc-row" style="background:#1B1B1A;border:1px solid #333331;">
+            <span class="filetype" style="background:#333331;color:#9C9C97;">DOC</span>
+            <span class="doc-title" style="color:#9C9C97;">Onboarding équipe.docx</span>
+            <span class="tag" style="background:#C6FF00;color:#12130A;">Procédures</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ VARIATION 2 : Froid ============ -->
+<!--
+  V2 — Bleuté + lime néon
+  Light: bg #F2F4F6 · surface #E6E9ED · border #D2D7DD · fg #1A1D22 · muted #667085
+  Dark:  bg #14171C · surface #1C2027 · border #2A2F38 · fg #E7E9EC · muted #99A1AC
+  Accent: #C6FF00 (fg on accent #12130A) both modes
+-->
+<div class="variation">
+  <div class="variation-header">
+    <h2>2 — Froid (bleuté)</h2>
+    <div class="register">Pointe de bleu-gris — proche de l'ancienne palette, "pro" classique, contraste net avec le lime.</div>
+  </div>
+  <div class="chips">
+    <span class="chip">accent #C6FF00</span>
+    <span class="chip">bg (L) #F2F4F6</span>
+    <span class="chip">surface (L) #E6E9ED</span>
+    <span class="chip">bg (D) #14171C</span>
+    <span class="chip">surface (D) #1C2027</span>
+  </div>
+  <div class="panels">
+    <div class="panel">
+      <div class="panel-label" style="background:#E6E9ED;color:#667085;">Clair</div>
+      <div class="app" style="background:#F2F4F6;color:#1A1D22;">
+        <div class="sidebar" style="background:#E6E9ED;border-right:1px solid #D2D7DD;">
+          <div class="nav-item" style="background:#C6FF00;color:#12130A;font-weight:600;">Bibliothèque</div>
+          <div class="nav-item">Recherche</div>
+          <div class="nav-item">Configuration</div>
+        </div>
+        <div class="main">
+          <button class="btn" style="background:#C6FF00;color:#12130A;">Importer</button>
+          <div class="doc-row" style="background:#E6E9ED;">
+            <span class="filetype" style="background:#D2D7DD;color:#667085;">PDF</span>
+            <span class="doc-title">Procédure export compta.pdf</span>
+            <span class="tag" style="background:#D2D7DD;color:#1A1D22;">Finance</span>
+          </div>
+          <div class="doc-row" style="background:#F2F4F6;border:1px solid #D2D7DD;">
+            <span class="filetype" style="background:#D2D7DD;color:#667085;">DOC</span>
+            <span class="doc-title" style="color:#667085;">Onboarding équipe.docx</span>
+            <span class="tag" style="background:#C6FF00;color:#12130A;">Procédures</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-label" style="background:#1C2027;color:#99A1AC;">Sombre</div>
+      <div class="app" style="background:#14171C;color:#E7E9EC;">
+        <div class="sidebar" style="background:#1C2027;border-right:1px solid #2A2F38;">
+          <div class="nav-item" style="background:#C6FF00;color:#12130A;font-weight:600;">Bibliothèque</div>
+          <div class="nav-item">Recherche</div>
+          <div class="nav-item">Configuration</div>
+        </div>
+        <div class="main">
+          <button class="btn" style="background:#C6FF00;color:#12130A;">Importer</button>
+          <div class="doc-row" style="background:#1C2027;">
+            <span class="filetype" style="background:#2A2F38;color:#99A1AC;">PDF</span>
+            <span class="doc-title">Procédure export compta.pdf</span>
+            <span class="tag" style="background:#2A2F38;color:#E7E9EC;">Finance</span>
+          </div>
+          <div class="doc-row" style="background:#14171C;border:1px solid #2A2F38;">
+            <span class="filetype" style="background:#2A2F38;color:#99A1AC;">DOC</span>
+            <span class="doc-title" style="color:#99A1AC;">Onboarding équipe.docx</span>
+            <span class="tag" style="background:#C6FF00;color:#12130A;">Procédures</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ VARIATION 3 : Chaud ============ -->
+<!--
+  V3 — Beige/brun + lime néon
+  Light: bg #F5F3F0 · surface #EAE6E1 · border #DBD5CD · fg #221F1A · muted #7A7266
+  Dark:  bg #1B1815 · surface #24201B · border #362F27 · fg #ECE7E0 · muted #A69C8D
+  Accent: #C6FF00 (fg on accent #12130A) both modes
+-->
+<div class="variation">
+  <div class="variation-header">
+    <h2>3 — Chaud (beige/brun)</h2>
+    <div class="register">Pointe brun/beige — plus "chaleureux", contraste organique avec le vert froid du lime.</div>
+  </div>
+  <div class="chips">
+    <span class="chip">accent #C6FF00</span>
+    <span class="chip">bg (L) #F5F3F0</span>
+    <span class="chip">surface (L) #EAE6E1</span>
+    <span class="chip">bg (D) #1B1815</span>
+    <span class="chip">surface (D) #24201B</span>
+  </div>
+  <div class="panels">
+    <div class="panel">
+      <div class="panel-label" style="background:#EAE6E1;color:#7A7266;">Clair</div>
+      <div class="app" style="background:#F5F3F0;color:#221F1A;">
+        <div class="sidebar" style="background:#EAE6E1;border-right:1px solid #DBD5CD;">
+          <div class="nav-item" style="background:#C6FF00;color:#12130A;font-weight:600;">Bibliothèque</div>
+          <div class="nav-item">Recherche</div>
+          <div class="nav-item">Configuration</div>
+        </div>
+        <div class="main">
+          <button class="btn" style="background:#C6FF00;color:#12130A;">Importer</button>
+          <div class="doc-row" style="background:#EAE6E1;">
+            <span class="filetype" style="background:#DBD5CD;color:#7A7266;">PDF</span>
+            <span class="doc-title">Procédure export compta.pdf</span>
+            <span class="tag" style="background:#DBD5CD;color:#221F1A;">Finance</span>
+          </div>
+          <div class="doc-row" style="background:#F5F3F0;border:1px solid #DBD5CD;">
+            <span class="filetype" style="background:#DBD5CD;color:#7A7266;">DOC</span>
+            <span class="doc-title" style="color:#7A7266;">Onboarding équipe.docx</span>
+            <span class="tag" style="background:#C6FF00;color:#12130A;">Procédures</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-label" style="background:#24201B;color:#A69C8D;">Sombre</div>
+      <div class="app" style="background:#1B1815;color:#ECE7E0;">
+        <div class="sidebar" style="background:#24201B;border-right:1px solid #362F27;">
+          <div class="nav-item" style="background:#C6FF00;color:#12130A;font-weight:600;">Bibliothèque</div>
+          <div class="nav-item">Recherche</div>
+          <div class="nav-item">Configuration</div>
+        </div>
+        <div class="main">
+          <button class="btn" style="background:#C6FF00;color:#12130A;">Importer</button>
+          <div class="doc-row" style="background:#24201B;">
+            <span class="filetype" style="background:#362F27;color:#A69C8D;">PDF</span>
+            <span class="doc-title">Procédure export compta.pdf</span>
+            <span class="tag" style="background:#362F27;color:#ECE7E0;">Finance</span>
+          </div>
+          <div class="doc-row" style="background:#1B1815;border:1px solid #362F27;">
+            <span class="filetype" style="background:#362F27;color:#A69C8D;">DOC</span>
+            <span class="doc-title" style="color:#A69C8D;">Onboarding équipe.docx</span>
+            <span class="tag" style="background:#C6FF00;color:#12130A;">Procédures</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ VARIATION 4 : Sécurité ============ -->
+<!--
+  V4 — SÉCURITÉ — Neutre + lime moins fluo
+  Light: bg #F4F4F2 · surface #EAEAE7 · border #D8D8D4 · fg #1C1C1A · muted #6B6B67 (identique à V1)
+  Dark:  bg #1B1B1A · surface #232322 · border #333331 · fg #ECECE9 · muted #9C9C97 (identique à V1)
+  Accent: #9CCB3D (fg on accent #14150A) both modes — moins saturé / moins fluo que #C6FF00
+-->
+<div class="variation">
+  <div class="variation-header">
+    <h2>4 — Sécurité (gris neutre, lime atténué)</h2>
+    <div class="register">Filet de sécurité si le lime pur #C6FF00 s'avère trop agressif à l'usage réel — même gris neutre que V1, lime moins saturé/moins fluo.</div>
+  </div>
+  <div class="chips">
+    <span class="chip">accent #9CCB3D (atténué)</span>
+    <span class="chip">bg (L) #F4F4F2</span>
+    <span class="chip">surface (L) #EAEAE7</span>
+    <span class="chip">bg (D) #1B1B1A</span>
+    <span class="chip">surface (D) #232322</span>
+  </div>
+  <div class="panels">
+    <div class="panel">
+      <div class="panel-label" style="background:#EAEAE7;color:#6B6B67;">Clair</div>
+      <div class="app" style="background:#F4F4F2;color:#1C1C1A;">
+        <div class="sidebar" style="background:#EAEAE7;border-right:1px solid #D8D8D4;">
+          <div class="nav-item" style="background:#9CCB3D;color:#14150A;font-weight:600;">Bibliothèque</div>
+          <div class="nav-item">Recherche</div>
+          <div class="nav-item">Configuration</div>
+        </div>
+        <div class="main">
+          <button class="btn" style="background:#9CCB3D;color:#14150A;">Importer</button>
+          <div class="doc-row" style="background:#EAEAE7;">
+            <span class="filetype" style="background:#D8D8D4;color:#6B6B67;">PDF</span>
+            <span class="doc-title">Procédure export compta.pdf</span>
+            <span class="tag" style="background:#D8D8D4;color:#1C1C1A;">Finance</span>
+          </div>
+          <div class="doc-row" style="background:#F4F4F2;border:1px solid #D8D8D4;">
+            <span class="filetype" style="background:#D8D8D4;color:#6B6B67;">DOC</span>
+            <span class="doc-title" style="color:#6B6B67;">Onboarding équipe.docx</span>
+            <span class="tag" style="background:#9CCB3D;color:#14150A;">Procédures</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-label" style="background:#232322;color:#9C9C97;">Sombre</div>
+      <div class="app" style="background:#1B1B1A;color:#ECECE9;">
+        <div class="sidebar" style="background:#232322;border-right:1px solid #333331;">
+          <div class="nav-item" style="background:#9CCB3D;color:#14150A;font-weight:600;">Bibliothèque</div>
+          <div class="nav-item">Recherche</div>
+          <div class="nav-item">Configuration</div>
+        </div>
+        <div class="main">
+          <button class="btn" style="background:#9CCB3D;color:#14150A;">Importer</button>
+          <div class="doc-row" style="background:#232322;">
+            <span class="filetype" style="background:#333331;color:#9C9C97;">PDF</span>
+            <span class="doc-title">Procédure export compta.pdf</span>
+            <span class="tag" style="background:#333331;color:#ECECE9;">Finance</span>
+          </div>
+          <div class="doc-row" style="background:#1B1B1A;border:1px solid #333331;">
+            <span class="filetype" style="background:#333331;color:#9C9C97;">DOC</span>
+            <span class="doc-title" style="color:#9C9C97;">Onboarding équipe.docx</span>
+            <span class="tag" style="background:#9CCB3D;color:#14150A;">Procédures</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

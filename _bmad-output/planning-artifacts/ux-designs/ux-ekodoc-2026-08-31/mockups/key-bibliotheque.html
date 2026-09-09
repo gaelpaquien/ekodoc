@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>EkoDoc — Bibliothèque</title>
+<style>
+/*
+  Screen: Bibliothèque
+  Governed by:
+  - DESIGN.md § Layout & Spacing (sidebar 220px, content-max-width)
+  - DESIGN.md § Components: sidebar, theme-toggle, footer, document-row, filetype-badge, filter-chip
+  - EXPERIENCE.md § Information Architecture (Bibliothèque row)
+  - EXPERIENCE.md § Component Patterns: "Sidebar", "Ligne de document", "Filtres (chips)"
+  - EXPERIENCE.md § State Patterns: "Dernière page atteinte" (pagination Suivant état)
+*/
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #ddd8d0; padding: 32px; }
+.browser-frame { max-width: 1280px; margin: 0 auto; border-radius: 12px; overflow: hidden; border: 1px solid #c9c2b7; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+.chrome { background: #EAE6E1; padding: 10px 14px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #DBD5CD; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: #c9c2b7; }
+.url { margin-left: 12px; background: #F5F3F0; border: 1px solid #DBD5CD; border-radius: 6px; padding: 4px 10px; font-size: 12px; color: #7A7266; }
+.app { display: flex; min-height: 640px; background: #F5F3F0; color: #221F1A; }
+
+.sidebar { width: 220px; background: #EAE6E1; border-right: 1px solid #DBD5CD; display: flex; flex-direction: column; padding: 20px 12px; }
+.brand { font-size: 14px; font-weight: 600; padding: 0 8px 20px; letter-spacing: .02em; }
+.nav-item { font-size: 14px; padding: 9px 12px; border-radius: 8px; margin-bottom: 2px; color: #221F1A; }
+.nav-item.active { background: #C6FF00; color: #12130A; font-weight: 600; }
+.sidebar-spacer { flex: 1; }
+.theme-toggle { font-size: 12px; color: #7A7266; padding: 8px 12px; display: flex; align-items: center; gap: 6px; }
+.footer { font-size: 14px; color: #7A7266; padding: 4px 12px 0; }
+
+.main { flex: 1; padding: 28px 32px; max-width: 960px; }
+h1 { font-size: 28px; font-weight: 600; margin-bottom: 18px; }
+.btn-primary { background: #C6FF00; color: #12130A; font-size: 14px; font-weight: 600; padding: 9px 18px; border-radius: 8px; border: none; margin-bottom: 20px; display: inline-block; }
+
+.filters { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+.chip { font-size: 13px; padding: 6px 14px; border-radius: 8px; background: #EAE6E1; color: #221F1A; }
+.chip.active { background: #C6FF00; color: #12130A; font-weight: 600; }
+
+.list { border-top: 1px solid #DBD5CD; }
+.doc-row { display: flex; align-items: center; gap: 12px; padding: 12px 10px; border-bottom: 1px solid #DBD5CD; font-size: 14px; border-radius: 4px; }
+.doc-row:hover { background: #EFEBE6; }
+.filetype { font-size: 11px; font-family: monospace; padding: 2px 7px; border-radius: 4px; background: #EAE6E1; color: #7A7266; min-width: 32px; text-align: center; }
+.doc-title { flex: 1; font-weight: 500; }
+.tags { display: flex; gap: 6px; }
+.tag { font-size: 11px; padding: 3px 10px; border-radius: 12px; background: #EAE6E1; color: #221F1A; }
+.date { font-size: 12px; color: #7A7266; width: 90px; text-align: right; }
+
+.pagination { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; font-size: 13px; }
+.page-btn { padding: 6px 14px; border-radius: 8px; background: #EAE6E1; color: #221F1A; }
+.page-btn.next { background: #C6FF00; color: #12130A; font-weight: 600; }
+.page-btn.disabled { color: #A69C8D; background: transparent; }
+</style>
+</head>
+<body>
+<div class="browser-frame">
+  <div class="chrome"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">ekodoc.test/bibliotheque</span></div>
+  <div class="app">
+    <div class="sidebar">
+      <div class="brand">EkoDoc</div>
+      <div class="nav-item active">Bibliothèque</div>
+      <div class="nav-item">Recherche</div>
+      <div class="nav-item">Configuration</div>
+      <div class="sidebar-spacer"></div>
+      <div class="theme-toggle">◐ Thème clair</div>
+      <div class="footer">Made with 💔 Claude</div>
+    </div>
+    <div class="main">
+      <h1>Bibliothèque</h1>
+      <button class="btn-primary">Importer</button>
+      <div class="filters">
+        <span class="chip active">Tag : Finance</span>
+        <span class="chip">Tag : Procédures</span>
+        <span class="chip">Tag : RH</span>
+        <span class="chip">Type : PDF</span>
+        <span class="chip">Type : Word</span>
+        <span class="chip">Type : Excel</span>
+        <span class="chip">Type : Créé</span>
+      </div>
+      <div class="list">
+        <div class="doc-row"><span class="filetype">PDF</span><span class="doc-title">Procédure export compta.pdf</span><span class="tags"><span class="tag">Finance</span></span><span class="date">31/08/2026</span></div>
+        <div class="doc-row"><span class="filetype">DOC</span><span class="doc-title">Onboarding équipe.docx</span><span class="tags"><span class="tag">Procédures</span></span><span class="date">28/08/2026</span></div>
+        <div class="doc-row"><span class="filetype">XLS</span><span class="doc-title">Budget prévisionnel 2026.xlsx</span><span class="tags"><span class="tag">Finance</span></span><span class="date">25/08/2026</span></div>
+        <div class="doc-row"><span class="filetype">CRÉÉ</span><span class="doc-title">Procédure de sauvegarde serveur</span><span class="tags"><span class="tag">Procédures</span><span class="tag">IT</span></span><span class="date">22/08/2026</span></div>
+        <div class="doc-row"><span class="filetype">PDF</span><span class="doc-title">Contrat prestataire ménage.pdf</span><span class="tags"><span class="tag">RH</span></span><span class="date">20/08/2026</span></div>
+        <div class="doc-row"><span class="filetype">DOC</span><span class="doc-title">Modèle compte-rendu réunion.docx</span><span class="tags"><span class="tag">Procédures</span></span><span class="date">18/08/2026</span></div>
+        <div class="doc-row"><span class="filetype">XLS</span><span class="doc-title">Suivi congés équipe.xlsx</span><span class="tags"><span class="tag">RH</span></span><span class="date">14/08/2026</span></div>
+        <div class="doc-row"><span class="filetype">CRÉÉ</span><span class="doc-title">Checklist accueil nouveau salarié</span><span class="tags"><span class="tag">RH</span><span class="tag">Procédures</span></span><span class="date">10/08/2026</span></div>
+      </div>
+      <div class="pagination">
+        <span class="page-btn disabled">← Précédent</span>
+        <span class="page-btn">Page 1 / 4</span>
+        <span class="page-btn next">Suivant →</span>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
