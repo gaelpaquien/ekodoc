@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-08-2026 08:49
-last_updated: 09-08-2026 15:34
+last_updated: 09-09-2026 11:45
 project: ekodoc
 project_key: NOKEY
 tracking_system: file-system
@@ -81,12 +81,12 @@ action_items:
     action: "Lancer bmad-sprint-planning avant de demarrer le prochain epic plutot
       quapres coup"
     owner: "Gael"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"
   - id: "epic-2-retro-item-5-fiabiliser-le-nettoyage-entre-tests-stor"
     epic: 2
-    action: "Ajouter une exclusion Windows Defender sur le dossier du projet (droits admin
-      requis). Un correctif applicatif (hook global de nettoyage dans tests/Pest.php)
+    action: "Ajouter une exclusion Windows Defender sur le dossier du projet (droits
+      admin requis). Un correctif applicatif (hook global de nettoyage dans tests/Pest.php)
       a ete tente et rejete le 2026-09-09 : il ralentissait la suite complete de ~15-20x
       (17-20s sans, 293-410s avec) sans que son benefice (elimination du flake) ait
       ete verifie, pour compenser une lenteur d'environnement (scan antivirus synchrone
