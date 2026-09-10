@@ -254,19 +254,19 @@ function formatDate(dateString) {
     <AppLayout>
         <div class="mx-auto max-w-3xl px-4 py-10">
             <div class="mb-6 flex items-center justify-between">
-                <h1 class="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+                <h1 class="text-2xl font-semibold text-foreground">
                     Bibliothèque de documents
                 </h1>
                 <div class="flex items-center gap-3">
                     <Link
                         href="/documents/create"
-                        class="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:border-blue-500 hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-neutral-700 dark:text-neutral-300"
+                        class="rounded-md border border-border bg-surface-alt px-4 py-2 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                     >
                         Créer un document
                     </Link>
                     <button
                         type="button"
-                        class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                        class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                         @click="isImportModalOpen = true"
                     >
                         Importer
@@ -280,34 +280,34 @@ function formatDate(dateString) {
                     v-model="searchTerm"
                     type="search"
                     placeholder="Rechercher un document (appuyez sur / pour y accéder)"
-                    class="w-full rounded-md border border-neutral-200 bg-white px-4 py-2 text-sm text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                    class="w-full rounded-md border border-border bg-background px-4 py-2 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                     aria-label="Rechercher un document"
                 >
             </div>
 
-            <div class="mb-6 flex flex-col gap-3 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
+            <div class="mb-6 flex flex-col gap-3 rounded-lg border border-border p-4">
                 <fieldset class="max-w-xs">
-                    <legend class="mb-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    <legend class="mb-2 text-sm font-medium text-foreground">
                         Filtrer par tag
                     </legend>
                     <TagSelector v-model="selectedTagIds" />
                 </fieldset>
 
                 <fieldset>
-                    <legend class="mb-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    <legend class="mb-2 text-sm font-medium text-foreground">
                         Type
                     </legend>
                     <div class="flex flex-wrap gap-x-4 gap-y-2">
                         <label
                             v-for="option in TYPE_OPTIONS"
                             :key="option.value"
-                            class="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300"
+                            class="flex items-center gap-2 text-sm text-foreground"
                         >
                             <input
                                 type="checkbox"
                                 :value="option.value"
                                 :checked="selectedTypes.includes(option.value)"
-                                class="rounded border-neutral-300 text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-neutral-700"
+                                class="rounded-sm border-border text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                                 @change="toggleType(option.value, $event.target.checked)"
                             >
                             {{ option.label }}
@@ -316,12 +316,12 @@ function formatDate(dateString) {
                 </fieldset>
 
                 <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2 pt-1">
-                    <span class="text-sm text-neutral-500 dark:text-neutral-500">Filtres actifs :</span>
+                    <span class="text-sm text-muted">Filtres actifs :</span>
                     <button
                         v-for="tagId in selectedTagIds"
                         :key="`tag-${tagId}`"
                         type="button"
-                        class="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300"
+                        class="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                         :aria-label="`Retirer le filtre tag ${tagName(tagId)}`"
                         @click="removeTagFilter(tagId)"
                     >
@@ -332,7 +332,7 @@ function formatDate(dateString) {
                         v-for="type in selectedTypes"
                         :key="`type-${type}`"
                         type="button"
-                        class="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300"
+                        class="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                         :aria-label="`Retirer le filtre type ${typeLabel(type)}`"
                         @click="removeTypeFilter(type)"
                     >
@@ -341,7 +341,7 @@ function formatDate(dateString) {
                     </button>
                     <button
                         type="button"
-                        class="text-xs font-medium text-neutral-500 underline hover:text-neutral-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-neutral-400 dark:hover:text-neutral-200"
+                        class="text-xs font-medium text-muted underline hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                         @click="clearFilters"
                     >
                         Retirer tous les filtres
@@ -351,12 +351,12 @@ function formatDate(dateString) {
 
             <div aria-live="polite" aria-atomic="true">
                 <div v-if="documents.length === 0 && hasActiveFilters" class="flex flex-col items-center gap-4 py-16 text-center">
-                    <p class="text-neutral-600 dark:text-neutral-400">
+                    <p class="text-muted">
                         Aucun document ne correspond à ces filtres.
                     </p>
                     <button
                         type="button"
-                        class="rounded-md border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-900"
+                        class="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                         @click="clearSearchAndFilters"
                     >
                         {{ trimmedSearchTerm ? 'Retirer les filtres et la recherche' : 'Retirer les filtres' }}
@@ -364,12 +364,12 @@ function formatDate(dateString) {
                 </div>
 
                 <div v-else-if="documents.length === 0 && trimmedSearchTerm" class="flex flex-col items-center gap-4 py-16 text-center">
-                    <p class="text-neutral-600 dark:text-neutral-400">
+                    <p class="text-muted">
                         Aucun document ne correspond à votre recherche.
                     </p>
                     <button
                         type="button"
-                        class="rounded-md border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-900"
+                        class="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                         @click="clearSearch"
                     >
                         Vider la recherche
@@ -377,34 +377,32 @@ function formatDate(dateString) {
                 </div>
 
                 <div v-else-if="documents.length === 0" class="flex flex-col items-center gap-4 py-16 text-center">
-                    <p class="text-neutral-600 dark:text-neutral-400">
+                    <p class="text-muted">
                         Aucun document pour l'instant.
                     </p>
                     <button
                         type="button"
-                        class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                        class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                         @click="isImportModalOpen = true"
                     >
                         Importer un document
                     </button>
                 </div>
 
-                <ul v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <ul v-else class="border-t border-border">
                     <li v-for="document in documents" :key="document.id">
                         <Link
                             :href="`/documents/${document.id}`"
-                            class="flex h-full flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-4 transition hover:border-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-neutral-800 dark:bg-neutral-900"
+                            class="flex items-center gap-3 border-b border-border px-2 py-3 transition hover:rounded-sm hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                         >
-                            <DocumentTypeBadge :mime-type="document.mime_type" :source="document.source" />
-                            <p class="font-medium text-neutral-900 dark:text-neutral-100">
+                            <DocumentTypeBadge class="shrink-0" :mime-type="document.mime_type" :source="document.source" />
+                            <span class="min-w-0 flex-1 truncate font-medium text-foreground">
                                 {{ document.title }}
-                            </p>
-                            <div class="mt-auto flex flex-col gap-2">
-                                <div v-if="document.tags && document.tags.length > 0" class="flex flex-wrap gap-1">
-                                    <TagChip v-for="tag in document.tags" :key="tag.id" :name="tag.name" />
-                                </div>
-                                <span class="text-xs text-neutral-500 dark:text-neutral-500">{{ formatDate(document.created_at) }}</span>
+                            </span>
+                            <div v-if="document.tags && document.tags.length > 0" class="flex shrink-0 flex-wrap gap-1">
+                                <TagChip v-for="tag in document.tags" :key="tag.id" :name="tag.name" />
                             </div>
+                            <span class="w-24 shrink-0 text-right text-xs text-muted">{{ formatDate(document.created_at) }}</span>
                         </Link>
                     </li>
                 </ul>

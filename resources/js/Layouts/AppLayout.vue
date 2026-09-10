@@ -1,12 +1,12 @@
 <script setup>
-import AppHeader from '@/Components/AppHeader.vue';
+import Sidebar from '@/Components/Sidebar.vue';
 import ExtractionTasksPanel from '@/Components/ExtractionTasksPanel.vue';
 </script>
 
 <template>
-    <div class="min-h-screen bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
-        <AppHeader />
-        <main>
+    <div class="flex min-h-screen bg-background text-foreground">
+        <Sidebar />
+        <main class="min-w-0 flex-1">
             <slot />
         </main>
         <ExtractionTasksPanel />

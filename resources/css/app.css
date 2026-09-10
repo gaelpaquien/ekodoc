@@ -8,4 +8,35 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* DESIGN.md v2 — neutres chauds beige/brun + accent lime. Chaque token
+       n'est défini qu'ici (Boundaries & Constraints, spec-3-2) : jamais de
+       valeur hex répétée en dur dans les composants. */
+    --color-background: #F5F3F0;
+    --color-surface: #EFEBE6;
+    --color-surface-alt: #EAE6E1;
+    --color-border: #DBD5CD;
+    --color-foreground: #221F1A;
+    --color-muted: #7A7266;
+    --color-primary: #C6FF00;
+    --color-primary-foreground: #12130A;
+
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+
+    --spacing-sidebar-width: 220px;
+}
+
+/* Dark pairing — this app resolves the theme purely via the `.dark` class
+   (toggled by Sidebar.vue, applied pre-paint by the SSR-safe script in
+   app.blade.php, which itself already accounts for `prefers-color-scheme`)
+   so no separate `@media (prefers-color-scheme)` block is needed here. */
+.dark {
+    --color-background: #1B1815;
+    --color-surface: #211D19;
+    --color-surface-alt: #24201B;
+    --color-border: #362F27;
+    --color-foreground: #ECE7E0;
+    --color-muted: #A69C8D;
 }

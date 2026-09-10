@@ -419,15 +419,15 @@ onBeforeUnmount(() => {
 <template>
     <AppLayout>
         <div class="mx-auto max-w-3xl px-4 py-10">
-            <Link href="/" class="text-sm text-blue-600 hover:underline dark:text-blue-400">
+            <Link href="/" class="text-sm text-muted hover:text-foreground hover:underline">
                 &larr; Retour à la bibliothèque
             </Link>
 
-            <h1 class="mt-4 text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
+            <h1 class="mt-4 text-2xl font-semibold text-foreground">
                 {{ document.title }}
             </h1>
 
-            <dl class="mt-6 space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
+            <dl class="mt-6 space-y-2 text-sm text-foreground">
                 <div class="flex items-center gap-2">
                     <dt class="font-medium">Type :</dt>
                     <dd>
@@ -453,7 +453,7 @@ onBeforeUnmount(() => {
                 <a
                     v-if="!isCreated && !sourceMissing"
                     :href="downloadUrl"
-                    class="inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                    class="inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                 >
                     Télécharger
                 </a>
@@ -461,7 +461,7 @@ onBeforeUnmount(() => {
                     v-else-if="!isCreated"
                     type="button"
                     disabled
-                    class="inline-flex cursor-not-allowed rounded-md bg-neutral-300 px-4 py-2 text-sm font-medium text-neutral-500 dark:bg-neutral-800 dark:text-neutral-600"
+                    class="inline-flex cursor-not-allowed rounded-md bg-surface-alt px-4 py-2 text-sm font-medium text-muted"
                 >
                     Télécharger
                 </button>
@@ -473,7 +473,7 @@ onBeforeUnmount(() => {
                 <Link
                     v-if="isCreated"
                     :href="`/documents/${document.id}/edit`"
-                    class="inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                    class="inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                 >
                     Modifier
                 </Link>
@@ -487,7 +487,7 @@ onBeforeUnmount(() => {
                 <button
                     v-if="isCreated"
                     type="button"
-                    class="inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    class="inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
                     :disabled="isExportingPdf"
                     @click="exportToPdf"
                 >
@@ -502,7 +502,7 @@ onBeforeUnmount(() => {
                 <button
                     v-if="isCreated"
                     type="button"
-                    class="inline-flex rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:border-blue-500 hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300"
+                    class="inline-flex rounded-md border border-border bg-surface-alt px-4 py-2 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
                     :disabled="isExportingWord"
                     @click="exportToWord"
                 >
@@ -529,7 +529,7 @@ onBeforeUnmount(() => {
                 <!-- eslint-disable-next-line vue/no-v-html -- content authored by the same local user in the app's own WYSIWYG editor (spec-2-1); no auth boundary exists in v1 (NFR3). -->
                 <div
                     v-if="isCreated"
-                    class="tiptap-content min-h-[200px] rounded-md border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100"
+                    class="tiptap-content min-h-[200px] rounded-md border border-border bg-background px-4 py-3 text-sm text-foreground"
                     v-html="document.content_html"
                 ></div>
 
@@ -543,34 +543,34 @@ onBeforeUnmount(() => {
                 <iframe
                     v-else-if="isPdf"
                     :src="previewUrl"
-                    class="h-[75vh] w-full rounded-md border border-neutral-200 dark:border-neutral-800"
+                    class="h-[75vh] w-full rounded-md border border-border"
                     title="Aperçu du document"
                 ></iframe>
 
                 <template v-else-if="isOfficeDocument">
                     <div
                         v-if="officePreviewState === 'loading'"
-                        class="flex items-center gap-2 rounded-md border border-neutral-200 p-4 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-400"
+                        class="flex items-center gap-2 rounded-md border border-border p-4 text-sm text-muted"
                     >
                         Conversion de l'aperçu en cours…
                     </div>
                     <div
                         v-else-if="officePreviewState === 'error'"
-                        class="rounded-md border border-neutral-200 p-4 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-400"
+                        class="rounded-md border border-border p-4 text-sm text-muted"
                     >
                         Aperçu indisponible pour ce fichier.
                     </div>
                     <iframe
                         v-else
                         :src="officePreviewBlobUrl"
-                        class="h-[75vh] w-full rounded-md border border-neutral-200 dark:border-neutral-800"
+                        class="h-[75vh] w-full rounded-md border border-border"
                         title="Aperçu du document"
                     ></iframe>
                 </template>
 
                 <div
                     v-else
-                    class="rounded-md border border-neutral-200 p-4 text-sm text-neutral-600 dark:border-neutral-800 dark:text-neutral-400"
+                    class="rounded-md border border-border p-4 text-sm text-muted"
                 >
                     Aperçu indisponible pour ce type de document.
                 </div>
@@ -588,12 +588,12 @@ onBeforeUnmount(() => {
                 aria-modal="true"
                 aria-labelledby="delete-dialog-title"
                 aria-describedby="delete-dialog-description"
-                class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900"
+                class="w-full max-w-md rounded-lg bg-surface p-6 shadow-xl"
             >
-                <h2 id="delete-dialog-title" class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                <h2 id="delete-dialog-title" class="text-lg font-semibold text-foreground">
                     Supprimer ce document ?
                 </h2>
-                <p id="delete-dialog-description" class="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+                <p id="delete-dialog-description" class="mt-2 text-sm text-muted">
                     « {{ document.title }} » sera supprimé définitivement, avec son fichier et son aperçu. Cette action est irréversible.
                 </p>
 
@@ -605,7 +605,7 @@ onBeforeUnmount(() => {
                     <button
                         ref="cancelDeleteButtonRef"
                         type="button"
-                        class="rounded-md px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                        class="rounded-md px-4 py-2 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
                         :disabled="isDeleting"
                         @click="closeDeleteDialog"
                     >
@@ -613,7 +613,7 @@ onBeforeUnmount(() => {
                     </button>
                     <button
                         type="button"
-                        class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-500 dark:hover:bg-red-400 dark:focus-visible:ring-background"
                         :disabled="isDeleting"
                         @click="confirmDelete"
                     >
@@ -635,7 +635,7 @@ onBeforeUnmount(() => {
                 v-if="showExportPdfToast"
                 role="status"
                 aria-live="polite"
-                class="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white shadow-lg dark:bg-neutral-100 dark:text-neutral-900"
+                class="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background shadow-lg"
             >
                 Export PDF généré.
             </div>
@@ -644,7 +644,7 @@ onBeforeUnmount(() => {
                 v-if="showExportWordToast"
                 role="status"
                 aria-live="polite"
-                class="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white shadow-lg dark:bg-neutral-100 dark:text-neutral-900"
+                class="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background shadow-lg"
             >
                 Export Word généré.
             </div>

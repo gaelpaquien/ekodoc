@@ -132,7 +132,7 @@ const editor = useEditor({
     ],
     editorProps: {
         attributes: {
-            class: 'tiptap-content min-h-[320px] rounded-b-md border border-t-0 border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100',
+            class: 'tiptap-content min-h-[320px] rounded-b-md border border-t-0 border-border bg-background px-4 py-3 text-sm text-foreground focus:outline-none',
             'aria-label': 'Contenu du document',
         },
     },
@@ -475,12 +475,12 @@ function submit() {
 <template>
     <AppLayout>
         <div class="mx-auto max-w-3xl px-4 py-10">
-            <Link href="/" class="text-sm text-blue-600 hover:underline dark:text-blue-400">
+            <Link href="/" class="text-sm text-muted hover:text-foreground hover:underline">
                 &larr; Retour à la bibliothèque
             </Link>
 
             <div class="mt-4">
-                <label for="document-title" class="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                <label for="document-title" class="mb-1 block text-sm font-medium text-foreground">
                     Titre
                 </label>
                 <input
@@ -489,7 +489,7 @@ function submit() {
                     v-model="form.title"
                     type="text"
                     placeholder="Titre du document"
-                    class="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-lg font-semibold text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                    class="w-full rounded-sm border border-border bg-background px-3 py-2 text-lg font-semibold text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                 >
                 <p v-if="form.errors.title" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
                     {{ form.errors.title }}
@@ -500,14 +500,14 @@ function submit() {
                 <div
                     role="toolbar"
                     aria-label="Mise en forme du document"
-                    class="flex flex-wrap items-center gap-1 rounded-t-md border border-neutral-300 bg-neutral-50 p-2 dark:border-neutral-700 dark:bg-neutral-800"
+                    class="flex flex-wrap items-center gap-1 rounded-t-md border border-border bg-surface-alt p-2"
                 >
                     <button
                         v-for="level in [1, 2, 3]"
                         :key="`heading-${level}`"
                         type="button"
-                        class="rounded px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-neutral-300 dark:hover:bg-neutral-700"
-                        :class="{ 'bg-neutral-200 dark:bg-neutral-700': editor?.isActive('heading', { level }) }"
+                        class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                        :class="{ 'bg-surface': editor?.isActive('heading', { level }) }"
                         :aria-pressed="editor?.isActive('heading', { level }) ?? false"
                         :aria-label="`Titre niveau ${level}`"
                         @click="editor?.chain().focus().toggleHeading({ level }).run()"
@@ -515,12 +515,12 @@ function submit() {
                         H{{ level }}
                     </button>
 
-                    <span class="mx-1 h-5 w-px bg-neutral-300 dark:bg-neutral-600" aria-hidden="true"></span>
+                    <span class="mx-1 h-5 w-px bg-border" aria-hidden="true"></span>
 
                     <button
                         type="button"
-                        class="rounded px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-neutral-300 dark:hover:bg-neutral-700"
-                        :class="{ 'bg-neutral-200 dark:bg-neutral-700': editor?.isActive('bulletList') }"
+                        class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                        :class="{ 'bg-surface': editor?.isActive('bulletList') }"
                         :aria-pressed="editor?.isActive('bulletList') ?? false"
                         aria-label="Liste à puces"
                         @click="editor?.chain().focus().toggleBulletList().run()"
@@ -530,8 +530,8 @@ function submit() {
 
                     <button
                         type="button"
-                        class="rounded px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-neutral-300 dark:hover:bg-neutral-700"
-                        :class="{ 'bg-neutral-200 dark:bg-neutral-700': editor?.isActive('orderedList') }"
+                        class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                        :class="{ 'bg-surface': editor?.isActive('orderedList') }"
                         :aria-pressed="editor?.isActive('orderedList') ?? false"
                         aria-label="Liste numérotée"
                         @click="editor?.chain().focus().toggleOrderedList().run()"
@@ -539,22 +539,22 @@ function submit() {
                         1. Liste
                     </button>
 
-                    <span class="mx-1 h-5 w-px bg-neutral-300 dark:bg-neutral-600" aria-hidden="true"></span>
+                    <span class="mx-1 h-5 w-px bg-border" aria-hidden="true"></span>
 
                     <button
                         type="button"
-                        class="rounded px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                        class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                         aria-label="Insérer un tableau"
                         @click="insertTable"
                     >
                         Tableau
                     </button>
 
-                    <span class="mx-1 h-5 w-px bg-neutral-300 dark:bg-neutral-600" aria-hidden="true"></span>
+                    <span class="mx-1 h-5 w-px bg-border" aria-hidden="true"></span>
 
                     <button
                         type="button"
-                        class="rounded px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                        class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                         aria-label="Insérer une image"
                         @click="openFilePicker"
                     >
@@ -572,14 +572,14 @@ function submit() {
 
                 <p
                     v-if="isLoadingContent"
-                    class="rounded-b-md border border-t-0 border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                    class="rounded-b-md border border-t-0 border-border bg-background px-4 py-3 text-sm text-muted"
                 >
                     Chargement du contenu…
                 </p>
                 <div
                     v-else
                     class="relative"
-                    :class="{ 'outline outline-2 outline-offset-[-2px] outline-blue-500': isDraggingImage }"
+                    :class="{ 'outline outline-2 outline-offset-[-2px] outline-primary': isDraggingImage }"
                     @dragover.prevent="isDraggingImage = true"
                     @dragleave.prevent="isDraggingImage = false"
                     @drop.prevent="onEditorDrop"
@@ -603,7 +603,7 @@ function submit() {
                 <span class="relative inline-flex">
                     <button
                         type="button"
-                        class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
                         :disabled="form.processing"
                         @click="onSaveClick"
                     >
@@ -614,11 +614,11 @@ function submit() {
                          same information for assistive tech. -->
                     <span
                         v-if="isDirty"
-                        class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-white dark:ring-neutral-950"
+                        class="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-background"
                         aria-hidden="true"
                     ></span>
                 </span>
-                <span v-if="isDirty" class="text-sm text-neutral-500 dark:text-neutral-400">
+                <span v-if="isDirty" class="text-sm text-muted">
                     Modifications non enregistrées
                 </span>
             </div>
@@ -634,17 +634,17 @@ function submit() {
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="image-dialog-title"
-                class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900"
+                class="w-full max-w-md rounded-lg bg-surface p-6 shadow-xl"
             >
-                <h2 id="image-dialog-title" class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                <h2 id="image-dialog-title" class="text-lg font-semibold text-foreground">
                     Insérer une image
                 </h2>
-                <p class="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+                <p class="mt-1 text-sm text-muted">
                     {{ pendingImageFile?.name }}
                 </p>
 
                 <div class="mt-4">
-                    <label for="image-alt-input" class="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    <label for="image-alt-input" class="mb-1 block text-sm font-medium text-foreground">
                         Texte alternatif
                     </label>
                     <input
@@ -653,7 +653,7 @@ function submit() {
                         v-model="pendingImageAlt"
                         type="text"
                         placeholder="Décrivez cette image"
-                        class="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                        class="w-full rounded-sm border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
                         :disabled="isUploadingImage"
                         @keydown.enter.prevent="uploadPendingImage"
                     >
@@ -666,7 +666,7 @@ function submit() {
                 <div class="mt-6 flex justify-end gap-3">
                     <button
                         type="button"
-                        class="rounded-md px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                        class="rounded-md px-4 py-2 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
                         :disabled="isUploadingImage"
                         @click="closeImageDialog"
                     >
@@ -674,7 +674,7 @@ function submit() {
                     </button>
                     <button
                         type="button"
-                        class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
                         :disabled="isUploadingImage"
                         @click="uploadPendingImage"
                     >

@@ -217,3 +217,11 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-1-tag-documents.md`
   summary: `sameTagIds()`, la comparaison order-insensitive utilisée par le dirty-check d'`Editor.vue` (`isDirty`), n'a aucun test unitaire dédié — rien ne garantit qu'une régression future (ex. inverser le sens de la comparaison) serait détectée.
   evidence: Blind Hunter (step-04 review) — aucun fichier `Editor.spec.js` n'existe dans le projet et sa création ne fait pas partie des tâches listées par ce spec ; même nature que les trous d'outillage de test JS déjà différés sur d'autres pages (Show.vue, Index.vue) dans les stories précédentes.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2-visual-identity-sidebar.md`
+  summary: `resources/js/Components/ExtractionTasksPanel.vue` tronque le titre de tâche (`<span class="truncate">{{ task.title }}</span>`) sans `min-w-0` sur ce span flex — un titre long ne tronque jamais réellement et peut déborder de la ligne.
+  evidence: Blind Hunter (step-04 review, iteration 2) — confirmé préexistant : identique dans `git show <baseline_commit>:resources/js/Components/ExtractionTasksPanel.vue`, avant tout changement de cette story ; ce diff n'a retoken que les couleurs de ce composant, jamais touché ce `<span>`. Même correctif trivial (`min-w-0`) que celui appliqué à la ligne de document d'`Index.vue` dans cette même story, si une session future retouche ce fichier.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2-visual-identity-sidebar.md`
+  summary: Dans la barre d'outils de l'Éditeur (`Editor.vue`), l'état "actif" d'un bouton de mise en forme (`editor?.isActive(...)`) utilise la même classe de fond (`bg-surface`) que l'état `:hover`, rendant un bouton actif indiscernable d'un bouton simplement survolé.
+  evidence: Blind Hunter (step-04 review, iteration 2) — préexistant : `git show <baseline_commit>` confirme que `bg-neutral-200`/`dark:bg-neutral-700` servait déjà identiquement à l'état actif ET à `hover:` avant cette story ; ce diff n'a fait que retoken la même ambiguïté, pas l'introduire.

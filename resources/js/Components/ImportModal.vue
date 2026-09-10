@@ -156,16 +156,16 @@ watch(
             role="dialog"
             aria-modal="true"
             aria-labelledby="import-modal-title"
-            class="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900"
+            class="w-full max-w-lg rounded-lg bg-surface p-6 shadow-xl"
         >
             <div class="mb-4 flex items-start justify-between">
-                <h2 id="import-modal-title" class="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+                <h2 id="import-modal-title" class="text-lg font-semibold text-foreground">
                     Importer un document
                 </h2>
                 <button
                     ref="closeButtonRef"
                     type="button"
-                    class="rounded p-1 text-neutral-500 hover:text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-neutral-100"
+                    class="rounded-sm p-1 text-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
                     aria-label="Fermer la fenêtre d'import"
                     :disabled="form.processing"
                     :aria-disabled="form.processing"
@@ -176,18 +176,18 @@ watch(
             </div>
 
             <div
-                class="flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-neutral-300 p-8 text-center dark:border-neutral-700"
-                :class="{ 'border-blue-500 bg-blue-50 dark:bg-blue-950/30': isDragging }"
+                class="flex flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed border-border bg-surface p-8 text-center"
+                :class="{ 'border-primary bg-primary/10': isDragging }"
                 @dragover.prevent="isDragging = true"
                 @dragleave.prevent="isDragging = false"
                 @drop.prevent="onDrop"
             >
-                <p class="text-sm text-neutral-600 dark:text-neutral-400">
+                <p class="text-sm text-muted">
                     Glissez-déposez un fichier ici, ou
                 </p>
                 <button
                     type="button"
-                    class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                    class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                     :disabled="form.processing"
                     @click="openFilePicker"
                 >
@@ -201,7 +201,7 @@ watch(
                     aria-label="Sélectionner un fichier à importer"
                     @change="onInputChange"
                 />
-                <p class="text-xs text-neutral-500 dark:text-neutral-500">
+                <p class="text-xs text-muted">
                     Formats acceptés : {{ ACCEPTED_LABEL }}
                 </p>
             </div>
@@ -210,7 +210,7 @@ watch(
                 <TagSelector v-model="form.tag_ids" :disabled="form.processing" />
             </div>
 
-            <p v-if="form.processing" class="mt-3 text-sm text-neutral-600 dark:text-neutral-400" role="status">
+            <p v-if="form.processing" class="mt-3 text-sm text-muted" role="status">
                 Import en cours…
             </p>
 

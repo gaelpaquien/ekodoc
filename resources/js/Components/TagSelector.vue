@@ -136,7 +136,7 @@ defineExpose({
 
 <template>
     <div class="w-full">
-        <label for="tag-selector-input" class="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+        <label for="tag-selector-input" class="mb-1 block text-sm font-medium text-foreground">
             Tags
         </label>
 
@@ -144,12 +144,12 @@ defineExpose({
             <span
                 v-for="tag in selectedTags"
                 :key="tag.id"
-                class="inline-flex items-center gap-1 rounded-full bg-neutral-100 py-0.5 pl-2.5 pr-1 text-xs font-medium text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                class="inline-flex items-center gap-1 rounded-lg bg-surface-alt py-0.5 pl-2.5 pr-1 text-xs font-medium text-foreground"
             >
                 {{ tag.name }}
                 <button
                     type="button"
-                    class="rounded-full p-0.5 hover:text-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed dark:hover:text-red-400"
+                    class="rounded-full p-0.5 text-muted hover:text-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed dark:hover:text-red-400 dark:focus-visible:ring-background"
                     :disabled="disabled"
                     :aria-label="`Retirer le tag ${tag.name}`"
                     @click="removeTag(tag.id)"
@@ -173,7 +173,7 @@ defineExpose({
                     ? `tag-selector-option-${filteredTags[highlightedIndex].id}`
                     : undefined"
                 placeholder="Rechercher un tag…"
-                class="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                class="w-full rounded-sm border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
                 :disabled="disabled"
                 @focus="openSuggestions"
                 @blur="closeSuggestions"
@@ -184,12 +184,12 @@ defineExpose({
                 v-if="isOpen"
                 id="tag-selector-listbox"
                 role="listbox"
-                class="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-md border border-neutral-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900"
+                class="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-sm border border-border bg-surface py-1 shadow-lg"
             >
                 <li
                     v-if="filteredTags.length === 0"
                     role="presentation"
-                    class="px-3 py-2 text-sm text-neutral-500 dark:text-neutral-500"
+                    class="px-3 py-2 text-sm text-muted"
                 >
                     {{ allTags.length === 0 ? "Aucun tag n'existe encore." : 'Aucun tag ne correspond.' }}
                 </li>
@@ -199,8 +199,8 @@ defineExpose({
                     :key="tag.id"
                     role="option"
                     :aria-selected="index === highlightedIndex"
-                    class="cursor-pointer px-3 py-2 text-sm text-neutral-700 dark:text-neutral-300"
-                    :class="{ 'bg-blue-50 dark:bg-blue-950/40': index === highlightedIndex }"
+                    class="cursor-pointer px-3 py-2 text-sm text-foreground"
+                    :class="{ 'bg-border': index === highlightedIndex }"
                     @mousedown.prevent="selectTag(tag)"
                     @mouseenter="highlightedIndex = index"
                 >
