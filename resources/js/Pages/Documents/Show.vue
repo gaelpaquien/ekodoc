@@ -74,6 +74,14 @@ const downloadUrl = computed(() => `/documents/${props.document.id}/download`);
 const exportPdfUrl = computed(() => `/documents/${props.document.id}/export/pdf`);
 const exportWordUrl = computed(() => `/documents/${props.document.id}/export/word`);
 
+// Read-only list (spec-3-3, FR13; Boundaries & Constraints: "pas d'ajout/
+// retrait depuis Show.vue", UX-DR16) — each attachment's own preview/
+// download links, same shape as the document's own downloadUrl above, just
+// scoped to one attachment.
+const attachments = computed(() => props.document.attachments ?? []);
+const attachmentPreviewUrl = (attachment) => `/documents/${props.document.id}/attachments/${attachment.id}/preview`;
+const attachmentDownloadUrl = (attachment) => `/documents/${props.document.id}/attachments/${attachment.id}/download`;
+
 // A created document (spec-2-1) has no original file on disk — `file_path`
 // is deliberately null (AD-9) — so it is never subject to the
 // file-missing/download flow below; its content lives in `content_html`
@@ -445,6 +453,41 @@ onBeforeUnmount(() => {
                         <p v-if="tagsError" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
                             {{ tagsError }}
                         </p>
+                    </dd>
+                </div>
+                <div class="flex items-start gap-2">
+                    <dt class="mt-2 font-medium">Pièces jointes :</dt>
+                    <dd class="w-full max-w-xs">
+                        <p v-if="attachments.length === 0" class="mt-2 text-sm text-muted">
+                            Aucune pièce jointe.
+                        </p>
+                        <ul v-else class="mt-2 flex flex-col gap-2">
+                            <li
+                                v-for="attachment in attachments"
+                                :key="attachment.id"
+                                class="flex items-center justify-between gap-2 rounded-md bg-surface-alt px-3 py-2 text-sm text-foreground"
+                            >
+                                <span class="truncate" :title="attachment.original_filename">
+                                    {{ attachment.original_filename }}
+                                </span>
+                                <span class="flex shrink-0 items-center gap-2">
+                                    <a
+                                        :href="attachmentPreviewUrl(attachment)"
+                                        target="_blank"
+                                        rel="noopener"
+                                        class="text-xs text-muted hover:text-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                                    >
+                                        Aperçu
+                                    </a>
+                                    <a
+                                        :href="attachmentDownloadUrl(attachment)"
+                                        class="text-xs text-muted hover:text-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                                    >
+                                        Télécharger
+                                    </a>
+                                </span>
+                            </li>
+                        </ul>
                     </dd>
                 </div>
             </dl>

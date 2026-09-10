@@ -225,3 +225,27 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-2-visual-identity-sidebar.md`
   summary: Dans la barre d'outils de l'Éditeur (`Editor.vue`), l'état "actif" d'un bouton de mise en forme (`editor?.isActive(...)`) utilise la même classe de fond (`bg-surface`) que l'état `:hover`, rendant un bouton actif indiscernable d'un bouton simplement survolé.
   evidence: Blind Hunter (step-04 review, iteration 2) — préexistant : `git show <baseline_commit>` confirme que `bg-neutral-200`/`dark:bg-neutral-700` servait déjà identiquement à l'état actif ET à `hover:` avant cette story ; ce diff n'a fait que retoken la même ambiguïté, pas l'introduire.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3-attach-documents.md`
+  summary: `extraction_status` d'une pièce jointe (`pending`/`processing`/`completed`/`failed`) est chargé côté client (`Editor.vue`, `Show.vue`) mais n'est affiché nulle part — un échec d'extraction reste invisible, contrairement au traitement du document parent qui expose déjà `pendingExtractions`.
+  evidence: Blind Hunter (step-04 review) — non requis par les AC/la matrice I/O de la spec (silencieux par design, cf. "best-effort, ne bloque jamais l'attachement") ; ajouter un indicateur visuel est un vrai gain UX mais hors du périmètre approuvé, à envisager si l'absence de retour utilisateur s'avère gênante en usage réel.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3-attach-documents.md`
+  summary: `useFileDropZone` (extrait d'`ImportModal.vue`, désormais partagé avec `AttachmentsPanel.vue`) traite un sélecteur de fichier annulé par l'utilisateur (aucun fichier choisi) comme un format non supporté, affichant "Format non supporté" au lieu de ne rien faire.
+  evidence: Blind Hunter (step-04 review) — défaut préexistant dans `ImportModal.vue` avant cette story ; le refactor en composable le duplique désormais vers un second composant au lieu de le corriger. Correctif trivial (`if (!file) return;` en tête de `validationError()`) si une session future retouche ce fichier.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3-attach-documents.md`
+  summary: Aucun test ne monte le vrai composant `ImportModal.vue` — `Index.spec.js` le stub entièrement (`ImportModal: true`) — alors que sa logique de validation/glisser-déposer a été extraite vers `useFileDropZone` par cette story ; une régression dans le composable partagé, atteinte via `ImportModal.vue`, ne ferait échouer aucun test.
+  evidence: Verification Gap Reviewer (step-04 review) — confirmé préexistant : `ImportModal.vue` n'avait déjà aucun fichier de test dédié avant cette story (constat identique dans le rapport d'investigation step-02) ; le refactor déplace le risque sans l'introduire. Corriger nécessiterait un `ImportModal.spec.js` dédié (même patron qu'`AttachmentsPanel.spec.js`), hors périmètre de cette story de fonctionnalité.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3-attach-documents.md`
+  summary: `DocumentAttachmentController` (store/destroy/preview/download) n'impose aucune restriction aux documents `source=created` — un document importé pourrait recevoir/perdre des pièces jointes via une requête directe à ces routes, alors que l'intent de la story les réserve aux documents rédigés dans l'Éditeur (aucun chemin UI n'y mène pour un document importé).
+  evidence: Blind Hunter (step-04 review) — cohérent avec la posture de sécurité déjà en place partout ailleurs dans l'app (NFR3 : "aucune authentification n'existe en v1, toujours autorisé") ; pas une régression introduite par cette story, à durcir en bloc si l'app gagne un jour une notion d'autorisation.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3-attach-documents.md`
+  summary: Aucune limite n'existe sur le nombre de pièces jointes par document ; `Document::syncAttachmentsExtractedText()` concatène sans borne le texte extrait de toutes les pièces jointes dans `attachments_extracted_text`, ensuite scanné par `LIKE` (driver Scout `database`).
+  evidence: Blind Hunter (step-04 review) — non couvert par les Boundaries/la matrice I/O de la spec ; risque théorique de dégradation à grande échelle, sans rapport avec la cible de performance de l'epic (~350 documents, pas de borne sur le nombre de pièces jointes par document) ; à revisiter si un usage réel accumule beaucoup de pièces jointes sur un même document.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3-attach-documents.md`
+  summary: Aucune distinction visuelle (icône/couleur) entre pièces jointes PDF/Word/Excel dans `AttachmentsPanel.vue`/`Show.vue` — la liste n'affiche qu'un nom de fichier brut, alors que `mime_type` est chargé sur chaque ligne.
+  evidence: Blind Hunter (step-04 review) — non requis par la spec ; amélioration UX à bas coût si une session future retouche ces composants (réutiliser `DocumentTypeBadge.vue`, déjà disponible pour le document parent).

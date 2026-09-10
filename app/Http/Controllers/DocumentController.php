@@ -10,6 +10,7 @@ use App\Actions\ExportDocumentToWordAction;
 use App\Actions\ImportDocumentAction;
 use App\Actions\SyncDocumentTagsAction;
 use App\Actions\UpdateDocumentAction;
+use App\Actions\UploadDraftAttachmentAction;
 use App\Actions\UploadEditorImageAction;
 use App\DataTransferObjects\ConvertDocumentToPreviewData;
 use App\DataTransferObjects\CreateDocumentData;
@@ -19,13 +20,16 @@ use App\DataTransferObjects\ExportDocumentToWordData;
 use App\DataTransferObjects\ImportDocumentData;
 use App\DataTransferObjects\SyncDocumentTagsData;
 use App\DataTransferObjects\UpdateDocumentData;
+use App\DataTransferObjects\UploadDraftAttachmentData;
 use App\DataTransferObjects\UploadEditorImageData;
 use App\Enums\DocumentSource;
 use App\Http\Requests\CreateDocumentRequest;
 use App\Http\Requests\ImportDocumentRequest;
 use App\Http\Requests\SyncDocumentTagsRequest;
 use App\Http\Requests\UpdateDocumentRequest;
+use App\Http\Requests\UploadDraftAttachmentRequest;
 use App\Http\Requests\UploadEditorImageRequest;
+use App\Jobs\ExtractDocumentTextJob;
 use App\Models\Document;
 use App\Support\DocumentMimeTypes;
 use Illuminate\Database\Eloquent\Builder;
@@ -227,6 +231,15 @@ class DocumentController extends Controller
      * spec-3-1), an optional set of tags chosen alongside the content is
      * assigned afterwards, in the same transaction, through
      * SyncDocumentTagsAction, the sole write point for it.
+     *
+     * `draft_attachments` (spec-3-3) is passed through unchanged to
+     * CreateDocumentAction, which relocates each kept draft attachment and
+     * creates its row inside the very same transaction. Once that
+     * transaction commits, one ExtractDocumentTextJob is dispatched per
+     * relocated row — never before commit, same reasoning as
+     * ImportDocumentAction's own post-transaction dispatch (AD-6/AD-9): a
+     * job must never be able to run against a row that a rollback could
+     * still erase.
      */
     public function storeCreated(CreateDocumentRequest $request, CreateDocumentAction $create, SyncDocumentTagsAction $syncTags): RedirectResponse
     {
@@ -235,6 +248,7 @@ class DocumentController extends Controller
                 title: $request->validated('title'),
                 contentHtml: $request->validated('content_html'),
                 draftToken: $request->validated('draft_token'),
+                draftAttachments: $request->validated('draft_attachments', []),
             ));
 
             $syncTags(new SyncDocumentTagsData(
@@ -244,6 +258,10 @@ class DocumentController extends Controller
 
             return $document;
         });
+
+        foreach ($document->attachments as $attachment) {
+            ExtractDocumentTextJob::dispatch($attachment);
+        }
 
         return to_route('documents.show', $document);
     }
@@ -267,6 +285,24 @@ class DocumentController extends Controller
         ));
 
         return back()->with('uploadedImage', $uploadedImage);
+    }
+
+    /**
+     * Sole entry point for a file attached to the editor before its
+     * document exists (spec-3-3, FR13) — mirrors storeEditorImage() exactly:
+     * always delegates to UploadDraftAttachmentAction, which stores it under
+     * a temporary, draft-token-keyed area, and communicates back through a
+     * standard Inertia redirect plus the shared `flash.uploadedAttachment`
+     * prop (AD-13) — never `response()->json()`.
+     */
+    public function storeEditorAttachment(UploadDraftAttachmentRequest $request, UploadDraftAttachmentAction $upload): RedirectResponse
+    {
+        $uploadedAttachment = $upload(new UploadDraftAttachmentData(
+            draftToken: $request->validated('draft_token'),
+            file: $request->file('file'),
+        ));
+
+        return back()->with('uploadedAttachment', $uploadedAttachment);
     }
 
     /**
@@ -305,7 +341,13 @@ class DocumentController extends Controller
 
     public function show(Document $document): Response
     {
-        $document->loadMissing('tags:id,name');
+        // `attachments:...` mirrors `tags:id,name` above: a deliberately
+        // narrow column list, never `file_path` (spec-3-3) — the client
+        // reaches an attachment's file only through the preview/download
+        // routes below, never by knowing its on-disk path, same as the
+        // document's own `file_path` already staying out of the `document`
+        // prop below.
+        $document->loadMissing(['tags:id,name', 'attachments:id,document_id,original_filename,mime_type,extraction_status']);
 
         return Inertia::render('Documents/Show', [
             'document' => [
@@ -315,6 +357,7 @@ class DocumentController extends Controller
                 'mime_type' => $document->mime_type,
                 'content_html' => $document->content_html,
                 'tags' => $document->tags,
+                'attachments' => $document->attachments,
                 'created_at' => $document->created_at,
             ],
             'sourceMissing' => $this->sourceMissing($document),
@@ -333,7 +376,7 @@ class DocumentController extends Controller
     {
         abort_unless($document->source === DocumentSource::Created, 403);
 
-        $document->loadMissing('tags:id,name');
+        $document->loadMissing(['tags:id,name', 'attachments:id,document_id,original_filename,mime_type,extraction_status']);
 
         return Inertia::render('Documents/Editor', [
             'document' => [
@@ -341,6 +384,7 @@ class DocumentController extends Controller
                 'title' => $document->title,
                 'content_html' => $document->content_html,
                 'tags' => $document->tags,
+                'attachments' => $document->attachments,
             ],
         ]);
     }

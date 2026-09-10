@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Document;
+use App\Models\DocumentAttachment;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -111,6 +112,25 @@ it('returns a 404 on a retried delete of an already-deleted document', function 
     // or existed and was just deleted.
     $secondResponse = test()->delete("/documents/{$id}");
     $secondResponse->assertNotFound();
+});
+
+// --- Pièces jointes (spec-3-3) -----------------------------------------
+
+it('deletes every attachment file and row alongside the document, never leaving an orphaned row', function () {
+    $document = importDeleteDocument();
+    $disk = Storage::disk('local');
+
+    $file = UploadedFile::fake()->createWithContent('annexe.pdf', deleteFixtureContents('sample.pdf'));
+    test()->post("/documents/{$document->id}/attachments", ['file' => $file]);
+    $attachment = DocumentAttachment::sole();
+
+    $disk->assertExists($attachment->file_path);
+
+    $response = test()->delete("/documents/{$document->id}");
+
+    $response->assertRedirect('/');
+    expect(DocumentAttachment::find($attachment->id))->toBeNull();
+    $disk->assertMissing($attachment->file_path);
 });
 
 it('leaves the document untouched when no delete request is sent', function () {

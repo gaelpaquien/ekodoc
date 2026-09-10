@@ -20,10 +20,11 @@ class CreateDocumentRequest extends FormRequest
      * empty string over the wire, so it's normalized back to null before
      * validation so `nullable` applies correctly.
      *
-     * `tag_ids`: the editor's TagSelector never sends `null` in practice,
-     * only an array (possibly empty) — normalized defensively anyway (Code
-     * review, spec-3-1) so an explicit `null` from any other caller is
-     * treated the same as "no tags" rather than failing the `array` rule.
+     * `tag_ids`/`draft_attachments`: neither the editor's TagSelector nor
+     * AttachmentsPanel ever sends `null` in practice, only an array
+     * (possibly empty) — normalized defensively anyway (Code review,
+     * spec-3-1) so an explicit `null` from any other caller is treated the
+     * same as "none" rather than failing the `array` rule.
      */
     protected function prepareForValidation(): void
     {
@@ -33,6 +34,10 @@ class CreateDocumentRequest extends FormRequest
 
         if ($this->tag_ids === null) {
             $this->merge(['tag_ids' => []]);
+        }
+
+        if ($this->draft_attachments === null) {
+            $this->merge(['draft_attachments' => []]);
         }
     }
 
@@ -54,6 +59,26 @@ class CreateDocumentRequest extends FormRequest
             // spec-2-2) — nullable here defensively, for a request that
             // never went through the editor at all.
             'draft_token' => ['nullable', 'uuid'],
+            // The draft attachments to keep (spec-3-3, Design Notes) — an
+            // attachment is never referenced from `content_html`, so the
+            // client must explicitly list which ones survived to
+            // "Enregistrer". Never blocking, may be absent or empty.
+            //
+            // `filename` is used directly to build a storage path in
+            // CreateDocumentAction::relocateDraftAttachments() — the regex
+            // (mirroring `$editorImageFilenamePattern` in routes/web.php)
+            // is defense-in-depth restricting it to exactly the
+            // `{uuid}.{ext}` shape UploadDraftAttachmentAction ever
+            // generates (code review finding), never trusting client input
+            // for a stored path, same principle already applied to
+            // `mime_type` elsewhere in this story.
+            'draft_attachments' => ['array'],
+            'draft_attachments.*.filename' => [
+                'required',
+                'string',
+                'regex:/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\.[a-zA-Z0-9]+$/',
+            ],
+            'draft_attachments.*.original_filename' => ['required', 'string', 'max:255'],
         ];
     }
 
@@ -71,6 +96,11 @@ class CreateDocumentRequest extends FormRequest
             'tag_ids.*.integer' => 'Tag invalide.',
             'tag_ids.*.exists' => 'Tag invalide.',
             'draft_token.uuid' => 'Session d\'édition invalide, merci de recharger la page.',
+            'draft_attachments.array' => 'Pièces jointes invalides.',
+            'draft_attachments.*.filename.required' => 'Pièce jointe invalide.',
+            'draft_attachments.*.filename.regex' => 'Pièce jointe invalide.',
+            'draft_attachments.*.original_filename.required' => 'Pièce jointe invalide.',
+            'draft_attachments.*.original_filename.max' => 'Nom de pièce jointe trop long (255 caractères maximum).',
         ];
     }
 }

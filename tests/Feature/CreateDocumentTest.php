@@ -2,9 +2,12 @@
 
 use App\Enums\DocumentSource;
 use App\Enums\ExtractionStatus;
+use App\Jobs\ExtractDocumentTextJob;
 use App\Models\Document;
+use App\Models\DocumentAttachment;
 use App\Models\Tag;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -30,6 +33,24 @@ function uploadDraftImage(string $draftToken): array
     ]);
 
     return session('uploadedImage');
+}
+
+/**
+ * Uploads one draft attachment the same way the editor does, and returns
+ * its flashed filename/original_filename/mime_type — the same payload the
+ * editor's AttachmentsPanel would keep in `draft_attachments` before
+ * "Enregistrer" is ever clicked (spec-3-3).
+ */
+function uploadDraftAttachment(string $draftToken, string $filename = 'annexe.pdf', string $fixture = 'sample.pdf'): array
+{
+    $file = UploadedFile::fake()->createWithContent($filename, file_get_contents(__DIR__.'/../Fixtures/'.$fixture));
+
+    test()->post('/documents/create/attachments', [
+        'draft_token' => $draftToken,
+        'file' => $file,
+    ]);
+
+    return session('uploadedAttachment');
 }
 
 // --- Enregistrement, tags déjà choisis ---------------------------------
@@ -252,4 +273,98 @@ it('drops an <img> tag pointing at a different draft\'s tmp directory (cross-tok
     // The other draft's own image is left untouched — only this document's
     // own draft directory is ever a relocation target.
     Storage::disk('local')->assertExists("documents/tmp/{$otherToken}/images/{$otherImage['filename']}");
+});
+
+// --- Pièces jointes en attente, relocalisation au save (spec-3-3) -----------
+
+it('relocates a kept draft attachment into the document directory and creates its row, dispatching extraction after commit', function () {
+    Queue::fake();
+    Storage::fake('local');
+
+    $draftToken = Str::uuid()->toString();
+    $uploadedAttachment = uploadDraftAttachment($draftToken, 'annexe.pdf', 'sample.pdf');
+
+    $response = test()->post('/documents/create', createDocumentPayload([
+        'draft_token' => $draftToken,
+        'draft_attachments' => [[
+            'filename' => $uploadedAttachment['filename'],
+            'original_filename' => $uploadedAttachment['original_filename'],
+        ]],
+    ]));
+
+    $document = Document::sole();
+    $response->assertRedirect("/documents/{$document->id}");
+
+    $attachment = DocumentAttachment::sole();
+    expect($attachment->document_id)->toBe($document->id);
+    expect($attachment->original_filename)->toBe('annexe.pdf');
+    expect($attachment->file_path)->toBe("documents/{$document->id}/attachments/{$uploadedAttachment['filename']}");
+    expect($attachment->mime_type)->toBe('application/pdf');
+    expect($attachment->extraction_status)->toBe(ExtractionStatus::Pending);
+
+    Storage::disk('local')->assertExists($attachment->file_path);
+    Storage::disk('local')->assertMissing("documents/tmp/{$draftToken}/attachments/{$uploadedAttachment['filename']}");
+
+    Queue::assertPushed(ExtractDocumentTextJob::class, fn ($job) => $job->target->is($attachment));
+});
+
+it('relocates two kept draft attachments in the same transaction', function () {
+    Storage::fake('local');
+
+    $draftToken = Str::uuid()->toString();
+    $first = uploadDraftAttachment($draftToken, 'annexe-1.pdf', 'sample.pdf');
+    $second = uploadDraftAttachment($draftToken, 'annexe-2.docx', 'sample.docx');
+
+    $response = test()->post('/documents/create', createDocumentPayload([
+        'draft_token' => $draftToken,
+        'draft_attachments' => [
+            ['filename' => $first['filename'], 'original_filename' => $first['original_filename']],
+            ['filename' => $second['filename'], 'original_filename' => $second['original_filename']],
+        ],
+    ]));
+
+    $document = Document::sole();
+    $response->assertRedirect("/documents/{$document->id}");
+    expect(DocumentAttachment::count())->toBe(2);
+    expect($document->attachments->pluck('original_filename')->sort()->values()->all())
+        ->toBe(['annexe-1.pdf', 'annexe-2.docx']);
+});
+
+it('leaves an uploaded draft attachment in tmp/, creating no row, when it is never listed in draft_attachments', function () {
+    Storage::fake('local');
+
+    $draftToken = Str::uuid()->toString();
+    $uploadedAttachment = uploadDraftAttachment($draftToken);
+
+    $response = test()->post('/documents/create', createDocumentPayload(['draft_token' => $draftToken]));
+
+    $document = Document::sole();
+    $response->assertRedirect("/documents/{$document->id}");
+    expect(DocumentAttachment::count())->toBe(0);
+    Storage::disk('local')->assertExists("documents/tmp/{$draftToken}/attachments/{$uploadedAttachment['filename']}");
+});
+
+it('is immediately searchable through its relocated draft attachment\'s extracted text', function () {
+    Storage::fake('local');
+
+    $draftToken = Str::uuid()->toString();
+    $uploadedAttachment = uploadDraftAttachment($draftToken, 'annexe.pdf', 'sample.pdf');
+
+    test()->post('/documents/create', createDocumentPayload([
+        'draft_token' => $draftToken,
+        'draft_attachments' => [[
+            'filename' => $uploadedAttachment['filename'],
+            'original_filename' => $uploadedAttachment['original_filename'],
+        ]],
+    ]));
+
+    $document = Document::sole();
+    $document->refresh();
+    expect($document->attachments_extracted_text)->toContain('EkoDoc sample pdf content');
+
+    $response = test()->get('/?search=EkoDoc');
+    $response->assertInertia(fn ($page) => $page
+        ->has('documents', 1)
+        ->where('documents.0.id', $document->id)
+    );
 });

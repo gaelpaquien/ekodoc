@@ -154,7 +154,7 @@ it('returns immediately with the document pending extraction, dispatching the jo
     expect($document->extracted_text)->toBeNull();
     Storage::disk('local')->assertExists($document->file_path);
 
-    Queue::assertPushed(ExtractDocumentTextJob::class, fn ($job) => $job->document->is($document));
+    Queue::assertPushed(ExtractDocumentTextJob::class, fn ($job) => $job->target->is($document));
 });
 
 it('lists documents still pending or processing extraction in the shared pendingExtractions prop', function () {

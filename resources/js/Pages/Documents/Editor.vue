@@ -10,6 +10,7 @@ import Image from '@tiptap/extension-image';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import TagSelector from '@/Components/TagSelector.vue';
+import AttachmentsPanel from '@/Components/AttachmentsPanel.vue';
 
 // Present only when reopening a previously created document to correct it
 // (spec-2-3) — absent (null) on a brand-new draft, in which case every
@@ -37,7 +38,47 @@ const form = useForm({
     content_html: props.document?.content_html ?? '',
     tag_ids: (props.document?.tags ?? []).map((tag) => tag.id),
     draft_token: draftToken,
+    // Only meaningful for a brand-new document (spec-3-3, Design Notes) —
+    // populated from `attachments` right before submit(); left as the
+    // initial [] on an existing document, whose attachments are already
+    // attached immediately through AttachmentsPanel's own `immediate` mode
+    // and never re-sent here.
+    draft_attachments: [],
 });
+
+// Pièces jointes (spec-3-3, FR13) — mirrors props.document.tags above:
+// pre-loaded for an existing document (DocumentController::edit()), empty
+// for a brand-new draft. Deliberately its own ref, never folded into
+// `form`/`snapshotCurrentState()`/isDirty (Boundaries & Constraints:
+// "ajout/retrait ne touche jamais content_html ni isDirty") — attaching or
+// detaching a file is never part of what makes this editor "dirty".
+const attachments = ref(props.document?.attachments ?? []);
+
+// Immediate mode only (an already-saved document): AttachmentsPanel's own
+// attach/detach requests use `preserveState: true` so this component
+// instance is never torn down, but Inertia still replaces `props.document`
+// with fresh data once the visit lands — without resyncing here, the local
+// `attachments` ref would keep showing its one-time setup snapshot forever,
+// silently breaking "panneau recharge via back()" (I/O matrix, code review
+// finding). Draft mode (`props.document` null) is untouched by this watch —
+// its list is managed exclusively through AttachmentsPanel's own
+// `update:attachments` emit.
+watch(
+    () => props.document?.attachments,
+    (value) => {
+        if (props.document) {
+            attachments.value = value ?? [];
+        }
+    },
+);
+
+// Mirrors AttachmentsPanel's own `isUploading` (`v-model:uploading`, code
+// review finding) — a draft attachment upload still in flight when
+// "Enregistrer" is clicked must never be silently excluded from
+// `draft_attachments` with no error shown; disabling Save while this is
+// true (see the template below) and guarding submit() itself closes that
+// window.
+const isAttachmentUploading = ref(false);
 
 const titleInputRef = ref(null);
 const tagSelectorRef = ref(null);
@@ -427,6 +468,14 @@ watch(
 // first click. Every click after that submits, even if no tag was ever
 // picked (tag_ids stays []): a tag is never blocking.
 async function onSaveClick() {
+    // A draft attachment upload still running would otherwise be silently
+    // excluded from `draft_attachments` (code review finding) — the Save
+    // button is also disabled while this is true (see template), this is
+    // the belt-and-braces guard against a click that still slips through.
+    if (isAttachmentUploading.value) {
+        return;
+    }
+
     if (!showTagSelector.value) {
         showTagSelector.value = true;
         await nextTick();
@@ -439,6 +488,14 @@ async function onSaveClick() {
 
 function submit() {
     form.content_html = editor.value?.getHTML() ?? currentContentHtml.value;
+    // Only relevant the first time this document is ever saved (Design
+    // Notes, spec-3-3) — CreateDocumentAction is the only consumer of
+    // `draft_attachments`; harmless to include unconditionally since an
+    // update to an already-saved document simply ignores the extra field.
+    form.draft_attachments = attachments.value.map((attachment) => ({
+        filename: attachment.filename,
+        original_filename: attachment.original_filename,
+    }));
 
     const options = {
         onSuccess: () => {
@@ -599,15 +656,25 @@ function submit() {
                 </p>
             </div>
 
+            <div class="mt-6">
+                <AttachmentsPanel
+                    v-model:attachments="attachments"
+                    v-model:uploading="isAttachmentUploading"
+                    :mode="props.document ? 'immediate' : 'draft'"
+                    :document-id="props.document?.id ?? null"
+                    :draft-token="draftToken"
+                />
+            </div>
+
             <div class="mt-6 flex items-center gap-3">
                 <span class="relative inline-flex">
                     <button
                         type="button"
                         class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
-                        :disabled="form.processing"
+                        :disabled="form.processing || isAttachmentUploading"
                         @click="onSaveClick"
                     >
-                        {{ form.processing ? 'Enregistrement…' : 'Enregistrer' }}
+                        {{ form.processing ? 'Enregistrement…' : (isAttachmentUploading ? 'Envoi de la pièce jointe…' : 'Enregistrer') }}
                     </button>
                     <!-- Discreet "unsaved changes" pastille (Boundaries & Constraints,
                          spec-2-3) — decorative only, the adjacent text carries the

@@ -75,8 +75,12 @@ class HandleInertiaRequests extends Middleware
             // `response()->json()`) — Laravel's own flash bag ages this
             // out automatically after the one request that follows the
             // redirect, so no manual cleanup is needed here.
+            //
+            // `uploadedAttachment` mirrors it exactly for a draft attachment
+            // upload (AD-13, spec-3-3: DocumentController::storeEditorAttachment()).
             'flash' => fn () => [
                 'uploadedImage' => session('uploadedImage'),
+                'uploadedAttachment' => session('uploadedAttachment'),
             ],
         ];
     }

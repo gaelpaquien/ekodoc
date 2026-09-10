@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DocumentAttachmentController;
 use App\Http\Controllers\DocumentController;
 use Illuminate\Support\Facades\Route;
 
@@ -25,6 +26,10 @@ Route::get('/documents/editor-images/tmp/{token}/{filename}', [DocumentControlle
     ->whereUuid('token')
     ->where('filename', $editorImageFilenamePattern)
     ->name('documents.editorImages.tmp');
+// Draft attachment upload (spec-3-3) — registered alongside the editor
+// image upload route above, ahead of GET /documents/{document} below for
+// the same reason.
+Route::post('/documents/create/attachments', [DocumentController::class, 'storeEditorAttachment'])->name('documents.editorAttachments.store');
 Route::get('/documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
 // Editing a previously created document (spec-2-3) — same distinct-suffix
 // shape as preview/download/images below, so no ordering conflict with the
@@ -43,4 +48,11 @@ Route::get('/documents/{document}/images/{filename}', [DocumentController::class
     ->where('filename', $editorImageFilenamePattern)
     ->name('documents.images.show');
 Route::patch('/documents/{document}/tags', [DocumentController::class, 'updateTags'])->name('documents.tags.update');
+// Immediate attach/detach/preview/download for an already-saved document
+// (spec-3-3) — registered ahead of the bare DELETE /documents/{document}
+// below, same distinct-suffix shape as preview/download/export above.
+Route::post('/documents/{document}/attachments', [DocumentAttachmentController::class, 'store'])->name('documents.attachments.store');
+Route::get('/documents/{document}/attachments/{attachment}/preview', [DocumentAttachmentController::class, 'preview'])->name('documents.attachments.preview');
+Route::get('/documents/{document}/attachments/{attachment}/download', [DocumentAttachmentController::class, 'download'])->name('documents.attachments.download');
+Route::delete('/documents/{document}/attachments/{attachment}', [DocumentAttachmentController::class, 'destroy'])->name('documents.attachments.destroy');
 Route::delete('/documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
