@@ -2,28 +2,28 @@
 
 namespace App\Http\Controllers;
 
-use App\Actions\CategorizeDocumentAction;
 use App\Actions\ConvertDocumentToPreviewAction;
 use App\Actions\CreateDocumentAction;
 use App\Actions\DeleteDocumentAction;
 use App\Actions\ExportDocumentToPdfAction;
 use App\Actions\ExportDocumentToWordAction;
 use App\Actions\ImportDocumentAction;
+use App\Actions\SyncDocumentTagsAction;
 use App\Actions\UpdateDocumentAction;
 use App\Actions\UploadEditorImageAction;
-use App\DataTransferObjects\CategorizeDocumentData;
 use App\DataTransferObjects\ConvertDocumentToPreviewData;
 use App\DataTransferObjects\CreateDocumentData;
 use App\DataTransferObjects\DeleteDocumentData;
 use App\DataTransferObjects\ExportDocumentToPdfData;
 use App\DataTransferObjects\ExportDocumentToWordData;
 use App\DataTransferObjects\ImportDocumentData;
+use App\DataTransferObjects\SyncDocumentTagsData;
 use App\DataTransferObjects\UpdateDocumentData;
 use App\DataTransferObjects\UploadEditorImageData;
 use App\Enums\DocumentSource;
-use App\Http\Requests\CategorizeDocumentRequest;
 use App\Http\Requests\CreateDocumentRequest;
 use App\Http\Requests\ImportDocumentRequest;
+use App\Http\Requests\SyncDocumentTagsRequest;
 use App\Http\Requests\UpdateDocumentRequest;
 use App\Http\Requests\UploadEditorImageRequest;
 use App\Models\Document;
@@ -54,11 +54,11 @@ class DocumentController extends Controller
 
     /**
      * Library entry point: renders one card per document (type badge,
-     * title, category, date), sorted most recent first, and hosts the
-     * Import modal. Sole point of entry for the documents query — search
-     * (`?search=`, Story 1.6) and category/type filters (`?category_id[]=`,
-     * `?type[]=`, Story 1.7) both converge here (AD-8). Pagination remains
-     * out of scope.
+     * title, tags, date), sorted most recent first, and hosts the Import
+     * modal. Sole point of entry for the documents query — search
+     * (`?search=`, Story 1.6) and tag/type filters (`?tag_id[]=`,
+     * `?type[]=`, Story 1.7/3.1) both converge here (AD-8). Pagination
+     * remains out of scope.
      *
      * An empty/absent `search` leaves the previous, unfiltered behavior
      * untouched: `latest()` over `Document::query()`. A non-empty term
@@ -67,33 +67,33 @@ class DocumentController extends Controller
      * query callback — both branches converge on the same `get([...])`.
      * Filters apply identically to both branches through applyFilters(),
      * never a second/divergent query path (Boundaries & Constraints,
-     * spec-1-7).
+     * spec-1-7/spec-3-1).
      */
     public function index(Request $request): Response
     {
         $rawSearch = $request->query('search', '');
         $search = trim(is_scalar($rawSearch) ? (string) $rawSearch : '');
 
-        $categoryIds = $this->categoryIdsFromQuery($request);
+        $tagIds = $this->tagIdsFromQuery($request);
         $types = $this->typesFromQuery($request);
 
-        $columns = ['id', 'title', 'source', 'mime_type', 'category_id', 'created_at'];
+        $columns = ['id', 'title', 'source', 'mime_type', 'created_at'];
 
         $documents = $search === ''
-            ? $this->applyFilters(Document::query(), $categoryIds, $types)
-                ->with('category:id,name')->latest()->get($columns)
+            ? $this->applyFilters(Document::query(), $tagIds, $types)
+                ->with('tags:id,name')->latest()->get($columns)
             // Scout's `database` driver interpolates the term unescaped into a
             // `LIKE '%...%'` clause (Laravel\Scout\Engines\DatabaseEngine) — `%`/`_`
             // are LIKE wildcards, so they're escaped here to keep the match literal.
             : Document::search(addcslashes($search, '%_'))
-                ->query(fn ($query) => $this->applyFilters($query, $categoryIds, $types)
-                    ->select($columns)->with('category:id,name')->latest())
+                ->query(fn ($query) => $this->applyFilters($query, $tagIds, $types)
+                    ->select($columns)->with('tags:id,name')->latest())
                 ->get();
 
         return Inertia::render('Documents/Index', [
             'documents' => $documents,
             'search' => $search,
-            'categoryFilters' => $categoryIds,
+            'tagFilters' => $tagIds,
             'typeFilters' => $types,
         ]);
     }
@@ -102,15 +102,20 @@ class DocumentController extends Controller
      * Sole filter-application point, called identically by both `index()`
      * branches (plain `Document::query()` and the Scout query callback) —
      * no divergence between the search and non-search paths (AD-8,
-     * Design Notes spec-1-7). ET between the category and type groups, OU
-     * within each group: `whereIn('category_id', ...)` narrows by category
-     * when any is selected, and a single `where()` closure ORs together
-     * the recognized-mime types plus `source = created` when selected.
+     * Design Notes spec-1-7), and the only place either filter is ever
+     * applied (Boundaries & Constraints, spec-3-1: never a second/separate
+     * `whereHas` branch elsewhere). ET between the tag and type groups, OU
+     * within each group: `whereHas('tags', ...)` narrows to documents
+     * carrying at least one of the selected tags when any is selected, and
+     * a single `where()` closure ORs together the recognized-mime types
+     * plus `source = created` when selected.
      */
-    private function applyFilters(Builder $query, array $categoryIds, array $types): Builder
+    private function applyFilters(Builder $query, array $tagIds, array $types): Builder
     {
-        if ($categoryIds !== []) {
-            $query->whereIn('category_id', $categoryIds);
+        if ($tagIds !== []) {
+            $query->whereHas('tags', function (Builder $tagQuery) use ($tagIds) {
+                $tagQuery->whereIn('tags.id', $tagIds);
+            });
         }
 
         if ($types !== []) {
@@ -132,18 +137,18 @@ class DocumentController extends Controller
     }
 
     /**
-     * `category_id[]` as a deduplicated list of positive ints — anything
+     * `tag_id[]` as a deduplicated list of positive ints — anything
      * non-numeric or malformed is dropped rather than surfacing an error,
      * mirroring how `search` tolerates a non-scalar/missing value.
      *
      * `FILTER_VALIDATE_INT` (rather than `is_numeric()`) rejects a value
      * like `"2.5"` outright instead of silently truncating it to `2` via
-     * `(int) "2.5"` — that truncation could otherwise match a real
-     * category the client never actually selected.
+     * `(int) "2.5"` — that truncation could otherwise match a real tag the
+     * client never actually selected.
      */
-    private function categoryIdsFromQuery(Request $request): array
+    private function tagIdsFromQuery(Request $request): array
     {
-        $raw = $request->query('category_id', []);
+        $raw = $request->query('tag_id', []);
 
         if (! is_array($raw)) {
             return [];
@@ -160,7 +165,7 @@ class DocumentController extends Controller
     /**
      * `type[]` filtered down to the four recognized values (Boundaries &
      * Constraints, spec-1-7: no fifth type) — anything else is silently
-     * dropped, same tolerance as categoryIdsFromQuery().
+     * dropped, same tolerance as tagIdsFromQuery().
      */
     private function typesFromQuery(Request $request): array
     {
@@ -177,31 +182,26 @@ class DocumentController extends Controller
     }
 
     /**
-     * ImportDocumentAction never touches `category_id` (Boundaries &
-     * Constraints, spec-1-5) — an optional category chosen in the Import
+     * ImportDocumentAction never touches `document_tag` (Boundaries &
+     * Constraints, spec-3-1) — an optional set of tags chosen in the Import
      * modal is assigned afterwards, in a second step, through
-     * CategorizeDocumentAction, the sole write point for it (AD-16).
+     * SyncDocumentTagsAction, the sole write point for it.
      *
      * Both calls run inside one transaction: without it, a
-     * CategorizeDocumentAction failure after a successful import would
-     * leave an orphaned Document row committed with no way to roll it
-     * back.
+     * SyncDocumentTagsAction failure after a successful import would leave
+     * an orphaned Document row committed with no way to roll it back.
      */
-    public function store(ImportDocumentRequest $request, ImportDocumentAction $import, CategorizeDocumentAction $categorize): RedirectResponse
+    public function store(ImportDocumentRequest $request, ImportDocumentAction $import, SyncDocumentTagsAction $syncTags): RedirectResponse
     {
-        $document = DB::transaction(function () use ($request, $import, $categorize) {
+        $document = DB::transaction(function () use ($request, $import, $syncTags) {
             $document = $import(new ImportDocumentData(
                 file: $request->file('file'),
             ));
 
-            $categoryId = $request->validated('category_id');
-
-            if ($categoryId !== null) {
-                $categorize(new CategorizeDocumentData(
-                    document: $document,
-                    categoryId: $categoryId,
-                ));
-            }
+            $syncTags(new SyncDocumentTagsData(
+                document: $document,
+                tagIds: $request->validated('tag_ids', []),
+            ));
 
             return $document;
         });
@@ -223,28 +223,24 @@ class DocumentController extends Controller
     /**
      * Sole entry point for saving a document authored in the editor —
      * mirrors store()'s transaction shape exactly: CreateDocumentAction
-     * never touches `category_id` itself (Boundaries & Constraints,
-     * spec-2-1), an optional category chosen alongside the content is
+     * never touches `document_tag` itself (Boundaries & Constraints,
+     * spec-3-1), an optional set of tags chosen alongside the content is
      * assigned afterwards, in the same transaction, through
-     * CategorizeDocumentAction, the sole write point for it (AD-16).
+     * SyncDocumentTagsAction, the sole write point for it.
      */
-    public function storeCreated(CreateDocumentRequest $request, CreateDocumentAction $create, CategorizeDocumentAction $categorize): RedirectResponse
+    public function storeCreated(CreateDocumentRequest $request, CreateDocumentAction $create, SyncDocumentTagsAction $syncTags): RedirectResponse
     {
-        $document = DB::transaction(function () use ($request, $create, $categorize) {
+        $document = DB::transaction(function () use ($request, $create, $syncTags) {
             $document = $create(new CreateDocumentData(
                 title: $request->validated('title'),
                 contentHtml: $request->validated('content_html'),
                 draftToken: $request->validated('draft_token'),
             ));
 
-            $categoryId = $request->validated('category_id');
-
-            if ($categoryId !== null) {
-                $categorize(new CategorizeDocumentData(
-                    document: $document,
-                    categoryId: $categoryId,
-                ));
-            }
+            $syncTags(new SyncDocumentTagsData(
+                document: $document,
+                tagIds: $request->validated('tag_ids', []),
+            ));
 
             return $document;
         });
@@ -309,7 +305,7 @@ class DocumentController extends Controller
 
     public function show(Document $document): Response
     {
-        $document->loadMissing('category:id,name');
+        $document->loadMissing('tags:id,name');
 
         return Inertia::render('Documents/Show', [
             'document' => [
@@ -318,8 +314,7 @@ class DocumentController extends Controller
                 'source' => $document->source,
                 'mime_type' => $document->mime_type,
                 'content_html' => $document->content_html,
-                'category_id' => $document->category_id,
-                'category' => $document->category,
+                'tags' => $document->tags,
                 'created_at' => $document->created_at,
             ],
             'sourceMissing' => $this->sourceMissing($document),
@@ -338,12 +333,14 @@ class DocumentController extends Controller
     {
         abort_unless($document->source === DocumentSource::Created, 403);
 
+        $document->loadMissing('tags:id,name');
+
         return Inertia::render('Documents/Editor', [
             'document' => [
                 'id' => $document->id,
                 'title' => $document->title,
                 'content_html' => $document->content_html,
-                'category_id' => $document->category_id,
+                'tags' => $document->tags,
             ],
         ]);
     }
@@ -352,11 +349,9 @@ class DocumentController extends Controller
      * Sole entry point for saving changes made to a document in the editor
      * — UpdateDocumentRequest::authorize() already closes off an
      * `imported` document before this ever runs. Unlike storeCreated(),
-     * the transaction and the conditional CategorizeDocumentAction call
-     * both live inside UpdateDocumentAction itself (Code Map, spec-2-3),
-     * since re-categorization here is conditional on a comparison against
-     * the document's *current* `category_id` that only the Action has
-     * loaded.
+     * the transaction and the SyncDocumentTagsAction call both live inside
+     * UpdateDocumentAction itself (Code Map, spec-2-3/spec-3-1), which
+     * always re-syncs tags in full rather than conditionally.
      */
     public function update(UpdateDocumentRequest $request, Document $document, UpdateDocumentAction $update): RedirectResponse
     {
@@ -364,7 +359,7 @@ class DocumentController extends Controller
             document: $document,
             title: $request->validated('title'),
             contentHtml: $request->validated('content_html'),
-            categoryId: $request->validated('category_id'),
+            tagIds: $request->validated('tag_ids', []),
             draftToken: $request->validated('draft_token'),
         ));
 
@@ -372,16 +367,17 @@ class DocumentController extends Controller
     }
 
     /**
-     * Sole route through which a document's category is reassigned or
-     * cleared back to "Uncategorized" after creation — always delegates
-     * to CategorizeDocumentAction (AD-16), never writes `category_id`
-     * itself.
+     * Sole route through which a document's tags are reassigned after
+     * creation from the Document Detail page — always delegates to
+     * SyncDocumentTagsAction, never writes `document_tag` itself. Always a
+     * full `sync()`, never `attach()`/`detach()` incrementally (Boundaries
+     * & Constraints, spec-3-1).
      */
-    public function updateCategory(CategorizeDocumentRequest $request, Document $document, CategorizeDocumentAction $action): RedirectResponse
+    public function updateTags(SyncDocumentTagsRequest $request, Document $document, SyncDocumentTagsAction $action): RedirectResponse
     {
-        $action(new CategorizeDocumentData(
+        $action(new SyncDocumentTagsData(
             document: $document,
-            categoryId: $request->validated('category_id'),
+            tagIds: $request->validated('tag_ids', []),
         ));
 
         return back();

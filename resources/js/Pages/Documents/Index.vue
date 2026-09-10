@@ -4,6 +4,8 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ImportModal from '@/Components/ImportModal.vue';
 import DocumentTypeBadge from '@/Components/DocumentTypeBadge.vue';
+import TagSelector from '@/Components/TagSelector.vue';
+import TagChip from '@/Components/TagChip.vue';
 
 const props = defineProps({
     documents: {
@@ -14,7 +16,7 @@ const props = defineProps({
         type: String,
         default: '',
     },
-    categoryFilters: {
+    tagFilters: {
         type: Array,
         default: () => [],
     },
@@ -25,7 +27,7 @@ const props = defineProps({
 });
 
 const page = usePage();
-const categories = computed(() => page.props.categories ?? []);
+const allTags = computed(() => page.props.tags ?? []);
 
 // Fixed set of four types (Boundaries & Constraints, spec-1-7: no fifth
 // type) — value matches the `type[]` query value the server recognizes
@@ -41,7 +43,7 @@ const TYPE_OPTIONS = computed(() => [
 
 const isImportModalOpen = ref(false);
 const searchTerm = ref(props.search);
-const selectedCategoryIds = ref([...props.categoryFilters]);
+const selectedTagIds = ref([...props.tagFilters]);
 const selectedTypes = ref([...props.typeFilters]);
 const searchInputRef = ref(null);
 
@@ -50,7 +52,7 @@ let debounceTimer = null;
 // filter selections so the watchers below can tell it apart from an actual
 // user edit and skip re-navigating — otherwise syncing from server props
 // (e.g. a browser back/forward restoring a different `?search=` or
-// `?category_id[]=`) would itself trigger a redundant `router.get` that
+// `?tag_id[]=`) would itself trigger a redundant `router.get` that
 // clobbers the history entry navigation just restored. Two independent
 // flags because a single response can update `search` and the filter
 // props together, and each side must consume only its own signal.
@@ -72,10 +74,10 @@ watch(
 
 // Same back/forward sync as `search`, for the filter arrays.
 watch(
-    () => props.categoryFilters,
+    () => props.tagFilters,
     (value) => {
         isSyncingFiltersFromProps = true;
-        selectedCategoryIds.value = [...value];
+        selectedTagIds.value = [...value];
     },
 );
 
@@ -88,11 +90,11 @@ watch(
 );
 
 // One shared navigation call for search + filters, all reflected in the
-// same `router.get` (Design Notes, spec-1-6/1-7) — `category_id[]=` and
+// same `router.get` (Design Notes, spec-1-6/1-7) — `tag_id[]=` and
 // `type[]=` echo through Inertia's default bracket array serialization.
 // Clearing any pending debounced search navigation here avoids a redundant
-// duplicate request when a filter checkbox (immediate, no debounce) is
-// toggled while a search-term debounce is still pending.
+// duplicate request when a filter selection (immediate, no debounce) is
+// made while a search-term debounce is still pending.
 function navigate() {
     if (debounceTimer) {
         clearTimeout(debounceTimer);
@@ -105,8 +107,8 @@ function navigate() {
         params.search = searchTerm.value;
     }
 
-    if (selectedCategoryIds.value.length > 0) {
-        params.category_id = selectedCategoryIds.value;
+    if (selectedTagIds.value.length > 0) {
+        params.tag_id = selectedTagIds.value;
     }
 
     if (selectedTypes.value.length > 0) {
@@ -116,7 +118,7 @@ function navigate() {
     router.get(
         '/',
         params,
-        { preserveState: true, replace: true, only: ['documents', 'search', 'categoryFilters', 'typeFilters'] },
+        { preserveState: true, replace: true, only: ['documents', 'search', 'tagFilters', 'typeFilters'] },
     );
 }
 
@@ -133,9 +135,9 @@ watch(searchTerm, () => {
     debounceTimer = setTimeout(navigate, 300);
 });
 
-// Filters are a discrete selection (checkbox toggle), not free typing —
-// no debounce, navigate immediately (Design Notes, spec-1-7).
-watch([selectedCategoryIds, selectedTypes], () => {
+// Filters are a discrete selection, not free typing — no debounce,
+// navigate immediately (Design Notes, spec-1-7).
+watch([selectedTagIds, selectedTypes], () => {
     if (isSyncingFiltersFromProps) {
         isSyncingFiltersFromProps = false;
         return;
@@ -151,7 +153,7 @@ watch([selectedCategoryIds, selectedTypes], () => {
 const trimmedSearchTerm = computed(() => searchTerm.value.trim());
 
 const hasActiveFilters = computed(
-    () => selectedCategoryIds.value.length > 0 || selectedTypes.value.length > 0,
+    () => selectedTagIds.value.length > 0 || selectedTypes.value.length > 0,
 );
 
 function clearSearch() {
@@ -159,20 +161,14 @@ function clearSearch() {
 }
 
 function clearFilters() {
-    selectedCategoryIds.value = [];
+    selectedTagIds.value = [];
     selectedTypes.value = [];
 }
 
 function clearSearchAndFilters() {
     searchTerm.value = '';
-    selectedCategoryIds.value = [];
+    selectedTagIds.value = [];
     selectedTypes.value = [];
-}
-
-function toggleCategory(categoryId, checked) {
-    selectedCategoryIds.value = checked
-        ? [...selectedCategoryIds.value, categoryId]
-        : selectedCategoryIds.value.filter((id) => id !== categoryId);
 }
 
 function toggleType(type, checked) {
@@ -181,16 +177,16 @@ function toggleType(type, checked) {
         : selectedTypes.value.filter((value) => value !== type);
 }
 
-function removeCategoryFilter(categoryId) {
-    selectedCategoryIds.value = selectedCategoryIds.value.filter((id) => id !== categoryId);
+function removeTagFilter(tagId) {
+    selectedTagIds.value = selectedTagIds.value.filter((id) => id !== tagId);
 }
 
 function removeTypeFilter(type) {
     selectedTypes.value = selectedTypes.value.filter((value) => value !== type);
 }
 
-function categoryName(categoryId) {
-    return categories.value.find((category) => category.id === categoryId)?.name ?? 'Catégorie';
+function tagName(tagId) {
+    return allTags.value.find((tag) => tag.id === tagId)?.name ?? 'Tag';
 }
 
 function typeLabel(type) {
@@ -290,29 +286,11 @@ function formatDate(dateString) {
             </div>
 
             <div class="mb-6 flex flex-col gap-3 rounded-lg border border-neutral-200 p-4 dark:border-neutral-800">
-                <fieldset>
+                <fieldset class="max-w-xs">
                     <legend class="mb-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                        Catégorie
+                        Filtrer par tag
                     </legend>
-                    <div v-if="categories.length === 0" class="text-sm text-neutral-500 dark:text-neutral-500">
-                        Aucune catégorie pour l'instant.
-                    </div>
-                    <div v-else class="flex flex-wrap gap-x-4 gap-y-2">
-                        <label
-                            v-for="category in categories"
-                            :key="category.id"
-                            class="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300"
-                        >
-                            <input
-                                type="checkbox"
-                                :value="category.id"
-                                :checked="selectedCategoryIds.includes(category.id)"
-                                class="rounded border-neutral-300 text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-neutral-700"
-                                @change="toggleCategory(category.id, $event.target.checked)"
-                            >
-                            {{ category.name }}
-                        </label>
-                    </div>
+                    <TagSelector v-model="selectedTagIds" />
                 </fieldset>
 
                 <fieldset>
@@ -340,14 +318,14 @@ function formatDate(dateString) {
                 <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2 pt-1">
                     <span class="text-sm text-neutral-500 dark:text-neutral-500">Filtres actifs :</span>
                     <button
-                        v-for="categoryId in selectedCategoryIds"
-                        :key="`category-${categoryId}`"
+                        v-for="tagId in selectedTagIds"
+                        :key="`tag-${tagId}`"
                         type="button"
                         class="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300"
-                        :aria-label="`Retirer le filtre catégorie ${categoryName(categoryId)}`"
-                        @click="removeCategoryFilter(categoryId)"
+                        :aria-label="`Retirer le filtre tag ${tagName(tagId)}`"
+                        @click="removeTagFilter(tagId)"
                     >
-                        {{ categoryName(categoryId) }}
+                        {{ tagName(tagId) }}
                         <span aria-hidden="true">×</span>
                     </button>
                     <button
@@ -374,7 +352,7 @@ function formatDate(dateString) {
             <div aria-live="polite" aria-atomic="true">
                 <div v-if="documents.length === 0 && hasActiveFilters" class="flex flex-col items-center gap-4 py-16 text-center">
                     <p class="text-neutral-600 dark:text-neutral-400">
-                        Aucun document ne correspond à ces critères.
+                        Aucun document ne correspond à ces filtres.
                     </p>
                     <button
                         type="button"
@@ -421,9 +399,11 @@ function formatDate(dateString) {
                             <p class="font-medium text-neutral-900 dark:text-neutral-100">
                                 {{ document.title }}
                             </p>
-                            <div class="mt-auto flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-500">
-                                <span>{{ document.category?.name ?? 'Non classé' }}</span>
-                                <span>{{ formatDate(document.created_at) }}</span>
+                            <div class="mt-auto flex flex-col gap-2">
+                                <div v-if="document.tags && document.tags.length > 0" class="flex flex-wrap gap-1">
+                                    <TagChip v-for="tag in document.tags" :key="tag.id" :name="tag.name" />
+                                </div>
+                                <span class="text-xs text-neutral-500 dark:text-neutral-500">{{ formatDate(document.created_at) }}</span>
                             </div>
                         </Link>
                     </li>

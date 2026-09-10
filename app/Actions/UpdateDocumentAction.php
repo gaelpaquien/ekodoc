@@ -3,7 +3,7 @@
 namespace App\Actions;
 
 use App\Actions\Concerns\SanitizesDocumentContent;
-use App\DataTransferObjects\CategorizeDocumentData;
+use App\DataTransferObjects\SyncDocumentTagsData;
 use App\DataTransferObjects\UpdateDocumentData;
 use App\Models\Document;
 use Illuminate\Support\Facades\DB;
@@ -22,24 +22,24 @@ use Illuminate\Support\Facades\DB;
  *   image was inserted — otherwise a re-save of unchanged content would
  *   have every existing `<img>` stripped as if forged (Boundaries &
  *   Constraints, spec-2-3).
- * - `category_id` is re-evaluated on every save, not just when non-null:
- *   CategorizeDocumentAction (AD-16, the sole write point for it) is
- *   invoked whenever the submitted value differs from what's already
- *   stored, including a reassignment back to `null` ("Non classé") — unlike
- *   CreateDocumentAction/storeCreated(), which only ever calls it for a
- *   non-null choice because a brand-new document already starts
- *   uncategorized.
+ * - Tags are re-synced unconditionally on every save, not just when
+ *   changed: SyncDocumentTagsAction (Boundaries & Constraints, spec-3-1,
+ *   the sole write point for `document_tag`) is always invoked with the
+ *   submitted `tagIds`, including an empty array to clear every previously
+ *   assigned tag — `sync()` is itself a no-op when nothing actually
+ *   changed, so there's no correctness reason to diff against the
+ *   document's current tags first.
  *
  * The whole thing — relocating any new draft images, rewriting
- * `content_html`, updating the `Document` row, and the conditional
- * recategorization — runs inside one `DB::transaction()` so a failure at
- * any step rolls back everything (Boundaries & Constraints, spec-2-3).
+ * `content_html`, updating the `Document` row, and re-syncing tags — runs
+ * inside one `DB::transaction()` so a failure at any step rolls back
+ * everything (Boundaries & Constraints, spec-2-3).
  */
 class UpdateDocumentAction
 {
     use SanitizesDocumentContent;
 
-    public function __construct(private CategorizeDocumentAction $categorize)
+    public function __construct(private SyncDocumentTagsAction $syncTags)
     {
     }
 
@@ -63,12 +63,10 @@ class UpdateDocumentAction
                 'extracted_text' => $this->deriveExtractedText($finalContentHtml),
             ]);
 
-            if ($data->categoryId !== $document->category_id) {
-                ($this->categorize)(new CategorizeDocumentData(
-                    document: $document,
-                    categoryId: $data->categoryId,
-                ));
-            }
+            ($this->syncTags)(new SyncDocumentTagsData(
+                document: $document,
+                tagIds: $data->tagIds,
+            ));
 
             return $document;
         });

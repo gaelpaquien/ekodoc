@@ -9,7 +9,7 @@ import TableRow from '@tiptap/extension-table-row';
 import Image from '@tiptap/extension-image';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import CategoryPicker from '@/Components/CategoryPicker.vue';
+import TagSelector from '@/Components/TagSelector.vue';
 
 // Present only when reopening a previously created document to correct it
 // (spec-2-3) — absent (null) on a brand-new draft, in which case every
@@ -35,18 +35,19 @@ const draftToken = crypto.randomUUID();
 const form = useForm({
     title: props.document?.title ?? '',
     content_html: props.document?.content_html ?? '',
-    category_id: props.document?.category_id ?? null,
+    tag_ids: (props.document?.tags ?? []).map((tag) => tag.id),
     draft_token: draftToken,
 });
 
 const titleInputRef = ref(null);
+const tagSelectorRef = ref(null);
 
-// Whether the category selector has been revealed yet. On a brand-new
-// document it starts hidden (UX-DR10, Design Notes spec-2-1) behind a
-// two-step "Enregistrer" gesture; in edit mode there is no such gesture to
-// reserve — the category the document already has is shown immediately
-// (Code Map, spec-2-3). Once shown, stays shown for the rest of the session.
-const showCategoryPicker = ref(!!props.document);
+// Whether the tag selector has been revealed yet. On a brand-new document
+// it starts hidden (UX-DR10, Design Notes spec-2-1) behind a two-step
+// "Enregistrer" gesture; in edit mode there is no such gesture to reserve —
+// the tags the document already has are shown immediately (Code Map,
+// spec-2-3/spec-3-1). Once shown, stays shown for the rest of the session.
+const showTagSelector = ref(!!props.document);
 
 // Tracks the editor's current HTML outside of TipTap itself so it can be
 // compared reactively against the snapshot below — TipTap's own state
@@ -54,7 +55,7 @@ const showCategoryPicker = ref(!!props.document);
 const currentContentHtml = ref(form.content_html);
 
 // Set once, right after the editor mounts (onCreate below), to the
-// title/content/category the form actually started from — comparing
+// title/content/tags the form actually started from — comparing
 // against a live loaded state rather than a mutation counter avoids a
 // false "dirty" positive from e.g. a click into the editor that changes
 // nothing (Design Notes, spec-2-3). Null until then, during which isDirty
@@ -65,15 +66,28 @@ function snapshotCurrentState() {
     return {
         title: form.title,
         contentHtml: currentContentHtml.value,
-        categoryId: form.category_id,
+        tagIds: form.tag_ids,
     };
 }
 
+// Order-insensitive comparison — reselecting the same set of tags in a
+// different order (remove then re-add, say) is not a real change.
+function sameTagIds(a, b) {
+    if (a.length !== b.length) {
+        return false;
+    }
+
+    const sortedA = [...a].sort((x, y) => x - y);
+    const sortedB = [...b].sort((x, y) => x - y);
+
+    return sortedA.every((value, index) => value === sortedB[index]);
+}
+
 // Discreet "unsaved changes" indicator on the Save button (Boundaries &
-// Constraints, spec-2-3) — compares the live title/content/category
-// against the snapshot taken when the editor became ready, not an edit
-// counter, so an edit that's undone back to the original state doesn't
-// stay flagged dirty forever.
+// Constraints, spec-2-3) — compares the live title/content/tags against
+// the snapshot taken when the editor became ready, not an edit counter, so
+// an edit that's undone back to the original state doesn't stay flagged
+// dirty forever.
 const isDirty = computed(() => {
     if (!initialSnapshot.value) {
         return false;
@@ -83,7 +97,7 @@ const isDirty = computed(() => {
 
     return current.title !== initialSnapshot.value.title
         || current.contentHtml !== initialSnapshot.value.contentHtml
-        || current.categoryId !== initialSnapshot.value.categoryId;
+        || !sameTagIds(current.tagIds, initialSnapshot.value.tagIds);
 });
 
 // Existing content must be loaded into TipTap before typing is allowed
@@ -311,8 +325,8 @@ function uploadPendingImage() {
         alt,
     }, {
         forceFormData: true,
-        // Both keep the in-progress draft (title, editor content, category
-        // choice) exactly as the user left it — the upload is a background
+        // Both keep the in-progress draft (title, editor content, tag
+        // choices) exactly as the user left it — the upload is a background
         // round-trip, never a real navigation away from the editor (Design
         // Notes, spec-2-2).
         preserveState: true,
@@ -407,17 +421,16 @@ watch(
 );
 
 // Save is a two-step gesture the first time a document is created (UX-DR10,
-// Design Notes spec-2-1): the category selector is optional and only
-// surfaces once the user signals intent to save, rather than being shown
-// upfront on an empty editor — matching the I/O matrix, no request is sent
-// on this first click. Every click after that submits, even if the picker
-// is left on "Non classé" (category_id stays null): a category is never
-// blocking.
+// Design Notes spec-2-1): the tag selector is optional and only surfaces
+// once the user signals intent to save, rather than being shown upfront on
+// an empty editor — matching the I/O matrix, no request is sent on this
+// first click. Every click after that submits, even if no tag was ever
+// picked (tag_ids stays []): a tag is never blocking.
 async function onSaveClick() {
-    if (!showCategoryPicker.value) {
-        showCategoryPicker.value = true;
+    if (!showTagSelector.value) {
+        showTagSelector.value = true;
         await nextTick();
-        document.getElementById('category-picker-select')?.focus();
+        tagSelectorRef.value?.focus();
         return;
     }
 
@@ -429,17 +442,17 @@ function submit() {
 
     const options = {
         onSuccess: () => {
-            // The save succeeded and content_html/category_id now match
-            // what's persisted — re-baseline so isDirty drops back to
-            // false rather than staying stuck true from the comparison
-            // above (relevant mainly if the redirect result is ever
-            // rendered as this same component instance).
+            // The save succeeded and content_html/tag_ids now match what's
+            // persisted — re-baseline so isDirty drops back to false rather
+            // than staying stuck true from the comparison above (relevant
+            // mainly if the redirect result is ever rendered as this same
+            // component instance).
             initialSnapshot.value = snapshotCurrentState();
         },
         onError: () => {
             // Validation errors (e.g. an empty title) surface inline via
-            // form.errors below — the drafted content and category choice
-            // are left untouched so the user can fix the title and retry.
+            // form.errors below — the drafted content and tag choices are
+            // left untouched so the user can fix the title and retry.
         },
     };
 
@@ -579,10 +592,10 @@ function submit() {
                 </p>
             </div>
 
-            <div v-if="showCategoryPicker" class="mt-6 max-w-xs">
-                <CategoryPicker v-model="form.category_id" :disabled="form.processing" />
-                <p v-if="form.errors.category_id" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
-                    {{ form.errors.category_id }}
+            <div v-if="showTagSelector" class="mt-6 max-w-xs">
+                <TagSelector ref="tagSelectorRef" v-model="form.tag_ids" :disabled="form.processing" />
+                <p v-if="form.errors.tag_ids" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
+                    {{ form.errors.tag_ids }}
                 </p>
             </div>
 

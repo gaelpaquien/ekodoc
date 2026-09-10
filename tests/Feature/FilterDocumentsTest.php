@@ -1,22 +1,25 @@
 <?php
 
 use App\Enums\DocumentSource;
-use App\Models\Category;
 use App\Models\Document;
+use App\Models\Tag;
 
-it('filters documents by a single category', function () {
-    $category = Category::factory()->create();
-    $other = Category::factory()->create();
+it('filters documents by a single tag', function () {
+    $tag = Tag::factory()->create();
+    $other = Tag::factory()->create();
 
-    $matching = Document::factory()->create(['category_id' => $category->id]);
-    $excluded = Document::factory()->create(['category_id' => $other->id]);
+    $matching = Document::factory()->create();
+    $matching->tags()->sync([$tag->id]);
 
-    $response = $this->get("/?category_id[]={$category->id}");
+    $excluded = Document::factory()->create();
+    $excluded->tags()->sync([$other->id]);
+
+    $response = $this->get("/?tag_id[]={$tag->id}");
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Index')
-        ->where('categoryFilters', [$category->id])
+        ->where('tagFilters', [$tag->id])
         ->has('documents', 1)
         ->where('documents.0.id', $matching->id)
     );
@@ -43,16 +46,19 @@ it('filters documents by a single type', function () {
     expect($word)->not->toBeNull();
 });
 
-it('ORs multiple selected categories within the category group', function () {
-    $categoryA = Category::factory()->create();
-    $categoryB = Category::factory()->create();
-    $categoryC = Category::factory()->create();
+it('ORs multiple selected tags within the tag group', function () {
+    $tagA = Tag::factory()->create();
+    $tagB = Tag::factory()->create();
+    $tagC = Tag::factory()->create();
 
-    $inA = Document::factory()->create(['category_id' => $categoryA->id]);
-    $inB = Document::factory()->create(['category_id' => $categoryB->id]);
-    $inC = Document::factory()->create(['category_id' => $categoryC->id]);
+    $inA = Document::factory()->create();
+    $inA->tags()->sync([$tagA->id]);
+    $inB = Document::factory()->create();
+    $inB->tags()->sync([$tagB->id]);
+    $inC = Document::factory()->create();
+    $inC->tags()->sync([$tagC->id]);
 
-    $response = $this->get("/?category_id[]={$categoryA->id}&category_id[]={$categoryB->id}");
+    $response = $this->get("/?tag_id[]={$tagA->id}&tag_id[]={$tagB->id}");
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
@@ -65,33 +71,46 @@ it('ORs multiple selected categories within the category group', function () {
     expect($inC)->not->toBeNull();
 });
 
-it('drops a malformed category_id value instead of erroring', function () {
-    $document = Document::factory()->create();
+it('matches a document tagged with several of the selected tags only once', function () {
+    $tagA = Tag::factory()->create();
+    $tagB = Tag::factory()->create();
 
-    $response = $this->get('/?category_id[]=abc');
+    $document = Document::factory()->create();
+    $document->tags()->sync([$tagA->id, $tagB->id]);
+
+    $response = $this->get("/?tag_id[]={$tagA->id}&tag_id[]={$tagB->id}");
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Index')
-        ->where('categoryFilters', [])
+        ->has('documents', 1)
+        ->where('documents.0.id', $document->id)
+    );
+});
+
+it('drops a malformed tag_id value instead of erroring', function () {
+    $document = Document::factory()->create();
+
+    $response = $this->get('/?tag_id[]=abc');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->component('Documents/Index')
+        ->where('tagFilters', [])
         ->has('documents', 1)
         ->where('documents.0.id', $document->id)
     );
 });
 
 it('orders filtered results most-recent-first, same as the unfiltered list', function () {
-    $category = Category::factory()->create();
+    $tag = Tag::factory()->create();
 
-    $oldest = Document::factory()->create([
-        'category_id' => $category->id,
-        'created_at' => now()->subDays(2),
-    ]);
-    $newest = Document::factory()->create([
-        'category_id' => $category->id,
-        'created_at' => now(),
-    ]);
+    $oldest = Document::factory()->create(['created_at' => now()->subDays(2)]);
+    $oldest->tags()->sync([$tag->id]);
+    $newest = Document::factory()->create(['created_at' => now()]);
+    $newest->tags()->sync([$tag->id]);
 
-    $response = $this->get("/?category_id[]={$category->id}");
+    $response = $this->get("/?tag_id[]={$tag->id}");
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
@@ -102,24 +121,22 @@ it('orders filtered results most-recent-first, same as the unfiltered list', fun
     );
 });
 
-it('combines category and type filters with AND between the two groups', function () {
-    $category = Category::factory()->create();
-    $otherCategory = Category::factory()->create();
+it('combines tag and type filters with AND between the two groups', function () {
+    $tag = Tag::factory()->create();
+    $otherTag = Tag::factory()->create();
 
-    $matching = Document::factory()->create([
-        'category_id' => $category->id,
-        'mime_type' => 'application/pdf',
-    ]);
-    $wrongCategory = Document::factory()->create([
-        'category_id' => $otherCategory->id,
-        'mime_type' => 'application/pdf',
-    ]);
+    $matching = Document::factory()->create(['mime_type' => 'application/pdf']);
+    $matching->tags()->sync([$tag->id]);
+
+    $wrongTag = Document::factory()->create(['mime_type' => 'application/pdf']);
+    $wrongTag->tags()->sync([$otherTag->id]);
+
     $wrongType = Document::factory()->create([
-        'category_id' => $category->id,
         'mime_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     ]);
+    $wrongType->tags()->sync([$tag->id]);
 
-    $response = $this->get("/?category_id[]={$category->id}&type[]=pdf");
+    $response = $this->get("/?tag_id[]={$tag->id}&type[]=pdf");
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
@@ -128,8 +145,36 @@ it('combines category and type filters with AND between the two groups', functio
         ->where('documents.0.id', $matching->id)
     );
 
-    expect($wrongCategory)->not->toBeNull();
+    expect($wrongTag)->not->toBeNull();
     expect($wrongType)->not->toBeNull();
+});
+
+it('combines a tag filter with an active search term through the same query entry point', function () {
+    $tag = Tag::factory()->create();
+    $otherTag = Tag::factory()->create();
+
+    $matching = Document::factory()->create(['extracted_text' => 'Voici la facture du mois de janvier.']);
+    $matching->tags()->sync([$tag->id]);
+
+    $wrongTag = Document::factory()->create(['extracted_text' => 'Voici la facture du mois de février.']);
+    $wrongTag->tags()->sync([$otherTag->id]);
+
+    $wrongSearch = Document::factory()->create(['extracted_text' => 'Compte-rendu de réunion hebdomadaire.']);
+    $wrongSearch->tags()->sync([$tag->id]);
+
+    $response = $this->get("/?search=facture&tag_id[]={$tag->id}");
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->component('Documents/Index')
+        ->where('search', 'facture')
+        ->where('tagFilters', [$tag->id])
+        ->has('documents', 1)
+        ->where('documents.0.id', $matching->id)
+    );
+
+    expect($wrongTag)->not->toBeNull();
+    expect($wrongSearch)->not->toBeNull();
 });
 
 it('ORs multiple selected types within the type group', function () {
@@ -208,26 +253,26 @@ it('combines a type filter with an active search term through the same query ent
 it('returns an empty list without failing when active filters match no document', function () {
     Document::factory()->create(['mime_type' => 'application/pdf']);
 
-    $category = Category::factory()->create();
+    $tag = Tag::factory()->create();
 
-    $response = $this->get("/?category_id[]={$category->id}&type[]=excel");
+    $response = $this->get("/?tag_id[]={$tag->id}&type[]=excel");
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Index')
-        ->where('categoryFilters', [$category->id])
+        ->where('tagFilters', [$tag->id])
         ->where('typeFilters', ['excel'])
         ->has('documents', 0)
     );
 });
 
-it('echoes back an empty categoryFilters/typeFilters when none are active', function () {
+it('echoes back an empty tagFilters/typeFilters when none are active', function () {
     $response = $this->get('/');
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Index')
-        ->where('categoryFilters', [])
+        ->where('tagFilters', [])
         ->where('typeFilters', [])
     );
 });

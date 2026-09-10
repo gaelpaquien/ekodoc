@@ -6,7 +6,7 @@ use App\Enums\DocumentSource;
 use App\Enums\ExtractionStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Laravel\Scout\Searchable;
 
 class Document extends Model
@@ -33,14 +33,14 @@ class Document extends Model
     }
 
     /**
-     * `category_id` is deliberately absent from $fillable: the only code
-     * path allowed to write it is CategorizeDocumentAction (AD-16), which
-     * uses forceFill() — mirroring how ImportDocumentAction itself sets
-     * `file_path` as a second, deliberate write after creation.
+     * `document_tag` is written exclusively through SyncDocumentTagsAction,
+     * always via a full `sync()` (Boundaries & Constraints, spec-3-1) —
+     * never `attach()`/`detach()` incrementally, and never from any other
+     * code path.
      */
-    public function category(): BelongsTo
+    public function tags(): BelongsToMany
     {
-        return $this->belongsTo(Category::class);
+        return $this->belongsToMany(Tag::class)->orderBy('tags.name');
     }
 
     /**

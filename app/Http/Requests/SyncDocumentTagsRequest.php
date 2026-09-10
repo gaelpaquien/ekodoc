@@ -4,9 +4,8 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\File;
 
-class ImportDocumentRequest extends FormRequest
+class SyncDocumentTagsRequest extends FormRequest
 {
     /**
      * No authentication/authorization exists in v1 (NFR3) — always allowed.
@@ -17,7 +16,7 @@ class ImportDocumentRequest extends FormRequest
     }
 
     /**
-     * `tag_ids`: the Import modal's TagSelector never sends `null` in
+     * The Document Detail page's TagSelector never sends `null` in
      * practice, only an array (possibly empty) — normalized defensively
      * anyway (Code review, spec-3-1) so an explicit `null` from any other
      * caller is treated the same as "no tags" rather than failing the
@@ -36,14 +35,6 @@ class ImportDocumentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'file' => [
-                'required',
-                File::types(['pdf', 'docx', 'xlsx'])->max(20 * 1024),
-            ],
-            // An optional set of tags chosen in the Import modal's
-            // TagSelector, assigned afterwards through
-            // SyncDocumentTagsAction (Boundaries & Constraints, spec-3-1) —
-            // never blocking, `tag_ids` may be absent or empty.
             'tag_ids' => ['array'],
             'tag_ids.*' => ['distinct', 'integer', Rule::exists('tags', 'id')],
         ];
@@ -54,12 +45,7 @@ class ImportDocumentRequest extends FormRequest
      */
     public function messages(): array
     {
-        $acceptedFormats = 'Formats acceptés : PDF, Word (.docx), Excel (.xlsx).';
-
         return [
-            'file.required' => "Merci de sélectionner un fichier à importer. {$acceptedFormats}",
-            'file.mimes' => "Format non supporté. {$acceptedFormats}",
-            'file.max' => "Fichier trop volumineux (20 Mo maximum). {$acceptedFormats}",
             'tag_ids.array' => 'Tags invalides.',
             'tag_ids.*.integer' => 'Tag invalide.',
             'tag_ids.*.exists' => 'Tag invalide.',

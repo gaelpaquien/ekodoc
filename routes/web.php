@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DocumentController;
 use Illuminate\Support\Facades\Route;
 
@@ -43,7 +42,5 @@ Route::get('/documents/{document}/export/word', [DocumentController::class, 'exp
 Route::get('/documents/{document}/images/{filename}', [DocumentController::class, 'serveDocumentImage'])
     ->where('filename', $editorImageFilenamePattern)
     ->name('documents.images.show');
-Route::patch('/documents/{document}/category', [DocumentController::class, 'updateCategory'])->name('documents.category.update');
+Route::patch('/documents/{document}/tags', [DocumentController::class, 'updateTags'])->name('documents.tags.update');
 Route::delete('/documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
-
-Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');

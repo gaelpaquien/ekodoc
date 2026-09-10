@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Document;
+use App\Models\Tag;
 
 it('filters documents whose extracted text contains the search term', function () {
     $matching = Document::factory()->create(['extracted_text' => 'Voici la facture du mois de janvier.']);
@@ -65,7 +66,7 @@ it('returns an empty list without failing when no document matches the search te
     );
 });
 
-it('never matches a document by title or category, only by extracted text', function () {
+it('never matches a document by title, only by extracted text', function () {
     $document = Document::factory()->create([
         'title' => 'Facture janvier.pdf',
         'extracted_text' => 'Contenu sans rapport avec le titre.',
@@ -80,6 +81,22 @@ it('never matches a document by title or category, only by extracted text', func
     );
 
     expect($document->title)->toContain('Facture');
+});
+
+it('never matches a document by its tag name, only by extracted text (tags are a filter, never a search term)', function () {
+    $tag = Tag::factory()->create(['name' => 'Facture']);
+    $document = Document::factory()->create([
+        'extracted_text' => 'Contenu sans rapport avec le nom du tag.',
+    ]);
+    $document->tags()->sync([$tag->id]);
+
+    $response = $this->get('/?search=Facture');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->component('Documents/Index')
+        ->has('documents', 0)
+    );
 });
 
 it('finds a document even when the search term only matches its extracted text, not its title', function () {

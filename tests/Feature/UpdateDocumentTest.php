@@ -1,7 +1,7 @@
 <?php
 
-use App\Models\Category;
 use App\Models\Document;
+use App\Models\Tag;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -28,15 +28,15 @@ function createDocumentThroughEditor(array $overrides = []): Document
 /**
  * Defaults every field to the document's own current value so each test
  * only needs to override the one field it's actually exercising — mirrors
- * how Editor.vue's form always submits title/content_html/category_id
- * together regardless of which one the user actually changed.
+ * how Editor.vue's form always submits title/content_html/tag_ids together
+ * regardless of which one the user actually changed.
  */
 function updateDocumentPayload(Document $document, array $overrides = []): array
 {
     return array_merge([
         'title' => $document->title,
         'content_html' => $document->content_html,
-        'category_id' => $document->category_id,
+        'tag_ids' => $document->tags()->pluck('tags.id')->all(),
     ], $overrides);
 }
 
@@ -63,9 +63,9 @@ function uploadDraftImageForUpdate(string $draftToken): array
 
 // --- Ouverture de l'édition --------------------------------------------------
 
-it('opens the editor with content_html/title/category pre-loaded for a created document', function () {
-    $category = Category::factory()->create(['name' => 'Comptes rendus']);
-    $document = createDocumentThroughEditor(['category_id' => $category->id]);
+it('opens the editor with content_html/title/tags pre-loaded for a created document', function () {
+    $tag = Tag::factory()->create(['name' => 'Comptes rendus']);
+    $document = createDocumentThroughEditor(['tag_ids' => [$tag->id]]);
 
     $response = test()->get("/documents/{$document->id}/edit");
 
@@ -74,7 +74,7 @@ it('opens the editor with content_html/title/category pre-loaded for a created d
         ->where('document.id', $document->id)
         ->where('document.title', $document->title)
         ->where('document.content_html', $document->content_html)
-        ->where('document.category_id', $category->id)
+        ->where('document.tags.0.id', $tag->id)
     );
 });
 
@@ -84,22 +84,22 @@ it('refuses to open the editor for an imported document', function () {
     test()->get("/documents/{$document->id}/edit")->assertForbidden();
 });
 
-// --- Enregistrement sans changement de catégorie -----------------------------
+// --- Enregistrement sans changement de tags ----------------------------------
 
-it('updates content_html and re-derives extracted_text without touching an unchanged category', function () {
-    $category = Category::factory()->create();
-    $document = createDocumentThroughEditor(['category_id' => $category->id]);
+it('updates content_html and re-derives extracted_text without changing unchanged tags', function () {
+    $tag = Tag::factory()->create();
+    $document = createDocumentThroughEditor(['tag_ids' => [$tag->id]]);
 
     $response = test()->patch("/documents/{$document->id}", updateDocumentPayload($document, [
         'content_html' => '<p>Texte modifié</p>',
-        'category_id' => $category->id,
+        'tag_ids' => [$tag->id],
     ]));
 
     $response->assertRedirect("/documents/{$document->id}");
     $document->refresh();
     expect($document->content_html)->toBe('<p>Texte modifié</p>');
     expect($document->extracted_text)->toBe('Texte modifié');
-    expect($document->category_id)->toBe($category->id);
+    expect($document->tags->pluck('id')->all())->toBe([$tag->id]);
 });
 
 it('rejects an empty title on update, persisting no change', function () {
@@ -113,31 +113,33 @@ it('rejects an empty title on update, persisting no change', function () {
     expect($document->fresh()->title)->toBe($document->title);
 });
 
-// --- Enregistrement avec changement de catégorie (y compris vers "Non classé") ---
+// --- Enregistrement avec remplacement complet des tags (y compris vers zéro tag) ---
 
-it('reassigns the category via CategorizeDocumentAction when the submitted value differs', function () {
-    $categoryA = Category::factory()->create();
-    $categoryB = Category::factory()->create();
-    $document = createDocumentThroughEditor(['category_id' => $categoryA->id]);
+it('replaces a document\'s tags entirely via sync() when the submitted set differs', function () {
+    $tagA = Tag::factory()->create();
+    $tagB = Tag::factory()->create();
+    $tagC = Tag::factory()->create();
+    $document = createDocumentThroughEditor(['tag_ids' => [$tagA->id, $tagB->id]]);
 
     $response = test()->patch("/documents/{$document->id}", updateDocumentPayload($document, [
-        'category_id' => $categoryB->id,
+        'tag_ids' => [$tagC->id],
     ]));
 
     $response->assertRedirect("/documents/{$document->id}");
-    expect($document->fresh()->category_id)->toBe($categoryB->id);
+    $document->refresh();
+    expect($document->tags->pluck('id')->sort()->values()->all())->toBe([$tagC->id]);
 });
 
-it('clears the category back to Non classé when the submitted value is null, unlike creation', function () {
-    $category = Category::factory()->create();
-    $document = createDocumentThroughEditor(['category_id' => $category->id]);
+it('clears every tag back to zero when the submitted set is empty, unlike creation', function () {
+    $tag = Tag::factory()->create();
+    $document = createDocumentThroughEditor(['tag_ids' => [$tag->id]]);
 
     $response = test()->patch("/documents/{$document->id}", updateDocumentPayload($document, [
-        'category_id' => null,
+        'tag_ids' => [],
     ]));
 
     $response->assertRedirect("/documents/{$document->id}");
-    expect($document->fresh()->category_id)->toBeNull();
+    expect($document->fresh()->tags)->toHaveCount(0);
 });
 
 // --- Image insérée pendant l'édition -----------------------------------------

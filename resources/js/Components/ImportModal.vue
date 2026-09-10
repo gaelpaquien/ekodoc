@@ -1,7 +1,7 @@
 <script setup>
 import { useForm } from '@inertiajs/vue3';
 import { computed, nextTick, ref, watch } from 'vue';
-import CategoryPicker from '@/Components/CategoryPicker.vue';
+import TagSelector from '@/Components/TagSelector.vue';
 
 const props = defineProps({
     open: {
@@ -18,7 +18,7 @@ const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 
 const form = useForm({
     file: null,
-    category_id: null,
+    tag_ids: [],
 });
 
 const clientError = ref('');
@@ -28,7 +28,7 @@ const fileInputRef = ref(null);
 const closeButtonRef = ref(null);
 let triggerElement = null;
 
-const errorMessage = computed(() => clientError.value || form.errors.file || form.errors.category_id || '');
+const errorMessage = computed(() => clientError.value || form.errors.file || form.errors.tag_ids || '');
 
 function extensionOf(filename) {
     return (filename.split('.').pop() || '').toLowerCase();
@@ -207,7 +207,7 @@ watch(
             </div>
 
             <div class="mt-4">
-                <CategoryPicker v-model="form.category_id" :disabled="form.processing" />
+                <TagSelector v-model="form.tag_ids" :disabled="form.processing" />
             </div>
 
             <p v-if="form.processing" class="mt-3 text-sm text-neutral-600 dark:text-neutral-400" role="status">

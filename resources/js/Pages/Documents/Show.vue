@@ -2,7 +2,7 @@
 import { Link, router } from '@inertiajs/vue3';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import CategoryPicker from '@/Components/CategoryPicker.vue';
+import TagSelector from '@/Components/TagSelector.vue';
 import DocumentTypeBadge from '@/Components/DocumentTypeBadge.vue';
 
 const props = defineProps({
@@ -17,42 +17,43 @@ const props = defineProps({
 });
 
 // Unlike the Import modal (where the document doesn't exist yet),
-// CategoryPicker's change here writes immediately: the Document Detail
-// page is the "reassign" / "clear back to Uncategorized" surface from the
-// I/O matrix (spec-1-5), so every emitted update:modelValue is persisted
-// through PATCH /documents/{id}/category — the only place that route is
-// called from.
-const categoryId = ref(props.document.category_id ?? null);
-const isSavingCategory = ref(false);
-const categoryError = ref('');
+// TagSelector's change here writes immediately: the Document Detail page
+// is the "reassign tags" surface from the I/O matrix (spec-3-1), so every
+// emitted update:modelValue is persisted through PATCH
+// /documents/{id}/tags — the only place that route is called from.
+const tagIds = ref((props.document.tags ?? []).map((tag) => tag.id));
+const isSavingTags = ref(false);
+const tagsError = ref('');
 
 // Inertia can reuse this component instance across a <Link> navigation
 // from one document to another — resync the local selection whenever the
 // underlying document prop changes rather than keeping the previous
-// document's category selected.
+// document's tags selected.
 watch(() => props.document.id, () => {
-    categoryId.value = props.document.category_id ?? null;
-    categoryError.value = '';
+    tagIds.value = (props.document.tags ?? []).map((tag) => tag.id);
+    tagsError.value = '';
 });
 
-function onCategoryChange(value) {
-    categoryId.value = value;
-    isSavingCategory.value = true;
-    categoryError.value = '';
+function onTagsChange(value) {
+    tagIds.value = value;
+    isSavingTags.value = true;
+    tagsError.value = '';
 
-    router.patch(`/documents/${props.document.id}/category`, { category_id: value }, {
+    router.patch(`/documents/${props.document.id}/tags`, { tag_ids: value }, {
         preserveScroll: true,
         preserveState: true,
         onError: (errors) => {
             // The optimistic selection above was never actually persisted
-            // — revert to the document's last known-good category rather
-            // than leaving the picker showing a rejected value with no
-            // indication anything went wrong.
-            categoryId.value = props.document.category_id ?? null;
-            categoryError.value = errors.category_id ?? 'Impossible de mettre à jour la catégorie.';
+            // — revert to props.document.tags (the last state actually
+            // confirmed by the server) rather than a locally-captured
+            // "previous" value, so two edits fired in quick succession
+            // can never have an earlier request's error revert stomp a
+            // later request's already-applied selection.
+            tagIds.value = (props.document.tags ?? []).map((tag) => tag.id);
+            tagsError.value = errors.tag_ids ?? 'Impossible de mettre à jour les tags.';
         },
         onFinish: () => {
-            isSavingCategory.value = false;
+            isSavingTags.value = false;
         },
     });
 }
@@ -438,11 +439,11 @@ onBeforeUnmount(() => {
                     <dd>{{ formattedDate }}</dd>
                 </div>
                 <div class="flex items-start gap-2">
-                    <dt class="mt-2 font-medium">Catégorie :</dt>
+                    <dt class="mt-2 font-medium">Tags :</dt>
                     <dd class="w-full max-w-xs">
-                        <CategoryPicker :model-value="categoryId" :disabled="isSavingCategory" @update:model-value="onCategoryChange" />
-                        <p v-if="categoryError" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
-                            {{ categoryError }}
+                        <TagSelector :model-value="tagIds" :disabled="isSavingTags" @update:model-value="onTagsChange" />
+                        <p v-if="tagsError" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
+                            {{ tagsError }}
                         </p>
                     </dd>
                 </div>

@@ -2,8 +2,8 @@
 
 use App\Enums\DocumentSource;
 use App\Enums\ExtractionStatus;
-use App\Models\Category;
 use App\Models\Document;
+use App\Models\Tag;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -32,12 +32,12 @@ function uploadDraftImage(string $draftToken): array
     return session('uploadedImage');
 }
 
-// --- Enregistrement, catégorie déjà choisie ---------------------------------
+// --- Enregistrement, tags déjà choisis ---------------------------------
 
-it('creates a document with the chosen category, derives extracted_text, and redirects to the document page', function () {
-    $category = Category::factory()->create(['name' => 'Comptes rendus']);
+it('creates a document with the chosen tags, derives extracted_text, and redirects to the document page', function () {
+    $tag = Tag::factory()->create(['name' => 'Comptes rendus']);
 
-    $response = test()->post('/documents/create', createDocumentPayload(['category_id' => $category->id]));
+    $response = test()->post('/documents/create', createDocumentPayload(['tag_ids' => [$tag->id]]));
 
     $document = Document::sole();
 
@@ -49,21 +49,21 @@ it('creates a document with the chosen category, derives extracted_text, and red
     expect($document->extraction_status)->toBe(ExtractionStatus::Completed);
     expect($document->file_path)->toBeNull();
     expect($document->mime_type)->toBeNull();
-    expect($document->category_id)->toBe($category->id);
+    expect($document->tags->pluck('id')->all())->toBe([$tag->id]);
 });
 
-// --- Enregistrement, catégorie non renseignée -------------------------------
+// --- Enregistrement, aucun tag renseigné -------------------------------
 
-it('creates a document with no category chosen, leaving category_id null (Non classé)', function () {
+it('creates a document with no tag chosen, leaving it with zero tags', function () {
     $response = test()->post('/documents/create', createDocumentPayload());
 
     $document = Document::sole();
 
     $response->assertRedirect("/documents/{$document->id}");
-    // CreateDocumentAction itself must never touch category_id —
-    // CategorizeDocumentAction remains the sole write point (AD-16), same
-    // guarantee already enforced for ImportDocumentAction.
-    expect($document->category_id)->toBeNull();
+    // CreateDocumentAction itself must never touch document_tag —
+    // SyncDocumentTagsAction remains the sole write point, same guarantee
+    // already enforced for ImportDocumentAction.
+    expect($document->tags)->toHaveCount(0);
 });
 
 // --- Titre vide --------------------------------------------------------------
@@ -82,10 +82,10 @@ it('rejects a request with no content_html and creates no document', function ()
     expect(Document::count())->toBe(0);
 });
 
-it('rejects an invalid category id and creates no document', function () {
-    $response = test()->post('/documents/create', createDocumentPayload(['category_id' => 999999]));
+it('rejects an invalid tag id and creates no document', function () {
+    $response = test()->post('/documents/create', createDocumentPayload(['tag_ids' => [999999]]));
 
-    $response->assertSessionHasErrors('category_id');
+    $response->assertSessionHasErrors('tag_ids.0');
     expect(Document::count())->toBe(0);
 });
 

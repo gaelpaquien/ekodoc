@@ -3,8 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Enums\ExtractionStatus;
-use App\Models\Category;
 use App\Models\Document;
+use App\Models\Tag;
 use App\Support\DocumentMimeTypes;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -47,15 +47,17 @@ class HandleInertiaRequests extends Middleware
                 ->whereIn('extraction_status', [ExtractionStatus::Pending, ExtractionStatus::Processing])
                 ->orderBy('created_at')
                 ->get(['id', 'title', 'extraction_status']),
-            // Powers CategoryPicker.vue (Import modal + Document Detail),
-            // shared globally so creating a category from either context
-            // updates the picker without a full remount (Design Notes,
-            // spec-1-5).
-            'categories' => fn () => Category::query()
+            // Powers TagSelector.vue everywhere it's mounted (Import modal,
+            // editor, Document Detail, Library filter) — the full list of
+            // already-existing tags it's allowed to offer (Boundaries &
+            // Constraints, spec-3-1: no free-text creation there). Tag
+            // management itself is out of scope for this story (story 3.5);
+            // rows come from TagFactory/tinker in the meantime.
+            'tags' => fn () => Tag::query()
                 ->orderBy('name')
                 ->get(['id', 'name']),
             // Powers Index.vue's type filter (`TYPE_OPTIONS`, pdf/word/excel
-            // entries only) — same pattern as `categories` above. Derived
+            // entries only) — same pattern as `tags` above. Derived
             // from DocumentMimeTypes::TYPE_TO_MIME/TYPE_LABELS, the single
             // source of truth also used server-side by DocumentController
             // (Epic 1/2 retrospectives, action item 3). `created` is

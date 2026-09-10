@@ -209,3 +209,11 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-corrections-post-retrospective.md`
   summary: `App\Support\DocumentMimeTypes::MIME_TO_FORMAT` et `::TYPE_TO_MIME` continuent de répéter indépendamment les 3 mêmes littéraux de mime-type complets (`application/pdf`, etc.) dans deux tableaux distincts de la même classe — la centralisation réduit la duplication inter-fichiers mais n'élimine pas la duplication interne à la classe ; une faute de frappe dans l'un et pas l'autre désynchronisant les deux tables silencieusement.
   evidence: Blind Hunter (step-04 review). Pas bloquant (les deux tableaux sont désormais testés — voir patch appliqué dans la même revue), mais une vraie table canonique unique (mime → {format, type, label}) serait plus robuste ; à envisager si un 4ᵉ mapping mime-type apparaît un jour dans le projet.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1-tag-documents.md`
+  summary: Pas de protection anti-doublon insensible à la casse pour `Tag` (équivalent au `LOWER(name)` de l'ancien `CreateCategoryAction`) — deux tags de casse différente (ex. "Facture" / "facture") pourraient un jour coexister.
+  evidence: Blind Hunter (step-04 review) — non actionnable maintenant : aucune UI de création de tag n'existe dans cette story (`tags` est peuplée via `TagFactory`/tinker en attendant) ; à traiter quand la story 3.5 (page Configuration, gestion des tags) livrera la création de tag.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1-tag-documents.md`
+  summary: `sameTagIds()`, la comparaison order-insensitive utilisée par le dirty-check d'`Editor.vue` (`isDirty`), n'a aucun test unitaire dédié — rien ne garantit qu'une régression future (ex. inverser le sens de la comparaison) serait détectée.
+  evidence: Blind Hunter (step-04 review) — aucun fichier `Editor.spec.js` n'existe dans le projet et sa création ne fait pas partie des tâches listées par ce spec ; même nature que les trous d'outillage de test JS déjà différés sur d'autres pages (Show.vue, Index.vue) dans les stories précédentes.
