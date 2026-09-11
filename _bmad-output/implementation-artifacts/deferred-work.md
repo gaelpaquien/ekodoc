@@ -253,3 +253,19 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-4-search-surface.md`
   summary: `Sidebar.vue` calcule `isLibraryActive` comme `!isSearchActive` (binaire) plutôt qu'une vérification explicite par surface — fonctionne tant qu'il n'existe que deux items de nav, mais un 3ᵉ item (Configuration, Story 3.5) ferait à tort passer "Bibliothèque" actif dessus aussi.
   evidence: Blind Hunter (step-04 review) — comportement conforme à l'intent gelé de cette story (spec-3-4 : "sans changer le comportement d'activation de Bibliothèque sur Fiche document/Éditeur"), pas un défaut introduit hors scope ; à corriger explicitement (vérification par surface plutôt que par exclusion) quand la Story 3.5 ajoute l'item Configuration.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-5-tags-configuration.md`
+  summary: Deux requêtes concurrentes (double-clic, deux onglets) peuvent toutes deux passer la validation de doublon insensible à la casse avant qu'aucune n'ait encore inséré sa ligne, créant deux tags variantes de casse de la même chaîne.
+  evidence: Blind Hunter + Edge Case Hunter (step-04 review, convergents) — la contrainte unique DB existante sur `tags.name` (migration spec-3-1) est sensible à la casse, donc ne bloque pas ce cas ; corriger proprement nécessiterait un index unique insensible à la casse (migration) ou une transaction avec re-vérification, hors proportion pour ce diff. Impact quasi nul pour un outil interne mono-utilisateur (NFR3, pas d'authentification).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-5-tags-configuration.md`
+  summary: La création et le renommage d'un tag ne produisent aucune confirmation annoncée (pas de `role="status"`/`aria-live`), contrairement à la suppression qui a son message factuel.
+  evidence: Blind Hunter (step-04 review) — non requis par les Boundaries & Constraints ni les Acceptance Criteria de spec-3-5 (qui exigent seulement la navigation clavier/focus visible), amélioration d'accessibilité au-delà du périmètre figé.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-5-tags-configuration.md`
+  summary: Les champs de création/renommage de tag n'ont pas d'`aria-describedby` reliant le texte d'erreur (`role="alert"`) au champ concerné.
+  evidence: Blind Hunter (step-04 review) — l'erreur est déjà annoncée via `role="alert"`, ceci est un raffinement d'association programmatique supplémentaire, hors périmètre figé de spec-3-5.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-5-tags-configuration.md`
+  summary: Le reste de la page (formulaire de création, liste) n'est pas marqué `inert`/`aria-hidden` pendant que la boîte de dialogue de suppression est ouverte.
+  evidence: Blind Hunter (step-04 review) — pattern préexistant identique dans `Show.vue` (dialogue de suppression document, spec-1-8), reproduit fidèlement par spec-3-5 sans régression propre à cette story.

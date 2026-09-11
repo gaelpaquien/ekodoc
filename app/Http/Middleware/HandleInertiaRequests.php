@@ -78,9 +78,16 @@ class HandleInertiaRequests extends Middleware
             //
             // `uploadedAttachment` mirrors it exactly for a draft attachment
             // upload (AD-13, spec-3-3: DocumentController::storeEditorAttachment()).
+            //
+            // `tagDeleted` mirrors the same pattern for the Configuration
+            // page's post-deletion message (spec-3-5:
+            // TagController::destroy()) — `{name, count}`, aged out
+            // automatically after the one request that follows the
+            // redirect, same as the two above.
             'flash' => fn () => [
                 'uploadedImage' => session('uploadedImage'),
                 'uploadedAttachment' => session('uploadedAttachment'),
+                'tagDeleted' => session('tagDeleted'),
             ],
         ];
     }

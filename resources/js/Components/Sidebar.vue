@@ -25,9 +25,14 @@ function toggleTheme() {
 // active only on its own dedicated surface (`Documents/Search`), and
 // "Bibliothèque" is active on every other existing surface — Library,
 // Document Detail, Editor — same as before (AC1, spec-3-2).
+//
+// "Configuration" gets the same dedicated-surface treatment (Code Map,
+// spec-3-5): active only on `Documents/Configuration`, with "Bibliothèque"
+// redefined to exclude it too, alongside Recherche.
 const page = usePage();
 const isSearchActive = computed(() => page.component === 'Documents/Search');
-const isLibraryActive = computed(() => !isSearchActive.value);
+const isConfigActive = computed(() => page.component === 'Documents/Configuration');
+const isLibraryActive = computed(() => !isSearchActive.value && !isConfigActive.value);
 </script>
 
 <template>
@@ -58,6 +63,16 @@ const isLibraryActive = computed(() => !isSearchActive.value);
                 :aria-current="isSearchActive ? 'page' : undefined"
             >
                 Recherche
+            </Link>
+            <Link
+                href="/configuration"
+                class="rounded-md px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                :class="isConfigActive
+                    ? 'bg-primary font-semibold text-primary-foreground'
+                    : 'text-foreground hover:bg-surface'"
+                :aria-current="isConfigActive ? 'page' : undefined"
+            >
+                Configuration
             </Link>
         </nav>
 

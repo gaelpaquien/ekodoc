@@ -44,12 +44,14 @@ describe('Sidebar', () => {
         expect(wrapper.text()).toContain('EkoDoc');
         expect(wrapper.text()).toContain('Bibliothèque');
         expect(wrapper.text()).toContain('Recherche');
+        expect(wrapper.text()).toContain('Configuration');
         expect(wrapper.text()).toContain('Made with 💔 Claude');
     });
 
     // AC1/AC5: "Bibliothèque" renders active on every surface except the
-    // dedicated Recherche one (Library, Document Detail, Editor — spec-3-2),
-    // driven by `usePage().component` rather than a fixed constant.
+    // dedicated Recherche/Configuration ones (Library, Document Detail,
+    // Editor — spec-3-2/spec-3-5), driven by `usePage().component` rather
+    // than a fixed constant.
     it('renders the Bibliothèque nav item as active when the current page is not Recherche', () => {
         pageState.component = 'Documents/Show';
         const wrapper = mount(Sidebar);
@@ -77,6 +79,22 @@ describe('Sidebar', () => {
         expect(navLink.classes()).not.toContain('bg-primary');
     });
 
+    // Code Map, spec-3-5: a "Configuration" item links to `/configuration`
+    // and renders active only on that dedicated surface, "Bibliothèque"
+    // turning inactive there too, same shape as the Recherche case above.
+    it('renders the Configuration nav item as active on the Documents/Configuration page, Bibliothèque turning inactive', () => {
+        pageState.component = 'Documents/Configuration';
+        const wrapper = mount(Sidebar);
+        const navLink = wrapper.find('a[href="/"]');
+        const configLink = wrapper.find('a[href="/configuration"]');
+
+        expect(configLink.exists()).toBe(true);
+        expect(configLink.attributes('aria-current')).toBe('page');
+        expect(configLink.classes()).toContain('bg-primary');
+        expect(navLink.attributes('aria-current')).toBeUndefined();
+        expect(navLink.classes()).not.toContain('bg-primary');
+    });
+
     // AC5: navigating away from a document reached through the Recherche
     // results (i.e. landing back on a non-Search surface) restores
     // "Bibliothèque" as active.
@@ -93,17 +111,18 @@ describe('Sidebar', () => {
         });
     });
 
-    // I/O matrix "Navigation clavier sidebar": focus order is nav (both
-    // items) then toggle then footer — the footer itself is static text,
-    // not a separate focusable stop.
-    it('exposes exactly the two nav links then the theme toggle as focusable items, in that order', () => {
+    // I/O matrix "Navigation clavier sidebar": focus order is nav (all
+    // three items) then toggle then footer — the footer itself is static
+    // text, not a separate focusable stop.
+    it('exposes exactly the three nav links then the theme toggle as focusable items, in that order', () => {
         const wrapper = mount(Sidebar);
         const focusable = wrapper.findAll('a, button');
 
-        expect(focusable).toHaveLength(3);
+        expect(focusable).toHaveLength(4);
         expect(focusable[0].element.tagName).toBe('A');
         expect(focusable[1].element.tagName).toBe('A');
-        expect(focusable[2].element.tagName).toBe('BUTTON');
+        expect(focusable[2].element.tagName).toBe('A');
+        expect(focusable[3].element.tagName).toBe('BUTTON');
     });
 
     // I/O matrix "Toggle thème": clicking flips `.dark` on <html> and

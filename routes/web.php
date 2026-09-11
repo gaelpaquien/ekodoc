@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DocumentAttachmentController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\TagController;
 use Illuminate\Support\Facades\Route;
 
 // Matches exactly what UploadEditorImageAction/CreateDocumentAction's move
@@ -14,6 +15,12 @@ $editorImageFilenamePattern = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9
 
 Route::get('/', [DocumentController::class, 'index'])->name('documents.index');
 Route::get('/recherche', [DocumentController::class, 'search'])->name('documents.search');
+// Tag management surface (FR14, spec-3-5) — registered alongside the other
+// top-level surfaces above, ahead of every /documents/* route below.
+Route::get('/configuration', [TagController::class, 'index'])->name('tags.index');
+Route::post('/tags', [TagController::class, 'store'])->name('tags.store');
+Route::patch('/tags/{tag}', [TagController::class, 'update'])->name('tags.update');
+Route::delete('/tags/{tag}', [TagController::class, 'destroy'])->name('tags.destroy');
 Route::post('/documents', [DocumentController::class, 'store'])->name('documents.store');
 // Registered ahead of GET /documents/{document} — otherwise "create" would
 // be captured by that route's model binding instead of reaching create().
