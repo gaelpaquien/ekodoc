@@ -241,11 +241,19 @@ onBeforeUnmount(() => {
 });
 
 function insertTable() {
+    if (editor.value?.isActive('table')) {
+        return;
+    }
+
     editor.value
         ?.chain()
         .focus()
         .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
         .run();
+}
+
+function deleteTable() {
+    editor.value?.chain().focus().deleteTable().run();
 }
 
 // --- Insertion d'image (bouton + glisser-déposer, spec-2-2) -----------------
@@ -600,11 +608,22 @@ function submit() {
 
                     <button
                         type="button"
-                        class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                        class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
+                        :disabled="editor?.isActive('table')"
                         aria-label="Insérer un tableau"
                         @click="insertTable"
                     >
                         Tableau
+                    </button>
+
+                    <button
+                        type="button"
+                        class="rounded-sm px-2 py-1 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
+                        :disabled="!editor?.isActive('table')"
+                        aria-label="Supprimer le tableau"
+                        @click="deleteTable"
+                    >
+                        Supprimer le tableau
                     </button>
 
                     <span class="mx-1 h-5 w-px bg-border" aria-hidden="true"></span>

@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-08-2026 08:49
-last_updated: 09-11-2026 09:15
+last_updated: 09-11-2026 09:27
 project: ekodoc
 project_key: NOKEY
 tracking_system: file-system
@@ -60,7 +60,7 @@ development_status:
   3-3-associer-des-pièces-jointes-à-un-document-créé: review
   3-4-rechercher-un-document-sur-une-surface-dédiée: review
   3-5-gérer-les-tags-depuis-une-page-de-configuration: review
-  3-6-corriger-l-insertion-de-tableaux-imbriqués-dans-l-éditeur: backlog
+  3-6-corriger-l-insertion-de-tableaux-imbriqués-dans-l-éditeur: review
   epic-3-retrospective: optional
 action_items:
   - id: "epic-1-retro-item-1-outiller-les-tests-js-vitest-vue-test-ut"

@@ -269,3 +269,19 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-5-tags-configuration.md`
   summary: Le reste de la page (formulaire de création, liste) n'est pas marqué `inert`/`aria-hidden` pendant que la boîte de dialogue de suppression est ouverte.
   evidence: Blind Hunter (step-04 review) — pattern préexistant identique dans `Show.vue` (dialogue de suppression document, spec-1-8), reproduit fidèlement par spec-3-5 sans régression propre à cette story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-6-nested-table-fix.md`
+  summary: "Supprimer le tableau" retire le tableau sans boîte de dialogue de confirmation — un clic accidentel supprime instantanément le tableau et son contenu.
+  evidence: Blind Hunter (step-04 review) — atténué par l'historique d'annulation TipTap (Ctrl+Z, `StarterKit`) disponible tant que le document n'est pas rechargé, contrairement aux suppressions permanentes (document/tag) qui ont, elles, une boîte de confirmation ; à revisiter si des pertes accidentelles sont rapportées en usage réel.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-6-nested-table-fix.md`
+  summary: Coller un extrait HTML externe contenant un `<table>` alors que le curseur est déjà dans un tableau existant n'est pas gardé par le correctif de cette story — seul le bouton "Insérer un tableau" est protégé, pas le collage, donc le même bug (tableau imbriqué) reste atteignable par ce second chemin.
+  evidence: Blind Hunter (step-04 review) — vecteur jugé rare pour un outil interne mono-utilisateur (usage typique : rédaction native dans l'Éditeur, pas de collage de HTML externe avec tableaux) ; corriger nécessiterait une garde côté schéma ProseMirror (`appendTransaction`) plutôt qu'un simple guard sur le bouton, hors proportion pour cette story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-6-nested-table-fix.md`
+  summary: Le comportement exact de `deleteTable()` lorsqu'il est invoqué depuis l'intérieur d'un tableau imbriqué préexistant (créé avant ce correctif) n'est ni spécifié ni testé — seul le chargement sans erreur de ce contenu legacy est couvert par l'AC/la matrice I/O, pas sa suppression.
+  evidence: Blind Hunter (step-04 review) — scénario rare (suppose qu'un tel document legacy existe déjà en base) ; le comportement par défaut de la commande TipTap native reste raisonnable par construction (aucune manipulation DOM manuelle ajoutée par cette story), mais n'a pas été vérifié manuellement pour ce cas précis.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-6-nested-table-fix.md`
+  summary: `Editor.spec.js` (nouveau) ne suit pas la convention `attachTo: document.body` + `wrapper.unmount()` déjà en place dans `Configuration.spec.js`/`Search.spec.js` — les 5 montages du fichier n'appellent jamais `onBeforeUnmount`, donc le nettoyage du listener `beforeunload` et de l'abonnement `router.on('before', ...)` d'`Editor.vue` n'est jamais exercé par ce test (accumulation silencieuse across les 5 `mount()`, sans échec observé sur la suite actuelle).
+  evidence: Blind Hunter (step-04 review, itération 2) — suite complète (80/80) verte malgré cette lacune ; à corriger si `Editor.spec.js` grossit ou si des avertissements de fuite apparaissent, en alignant sur le patron déjà établi par les specs voisines du même dossier.
