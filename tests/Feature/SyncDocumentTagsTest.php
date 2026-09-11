@@ -192,7 +192,7 @@ it('shows the assigned tags on the library card', function () {
 
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Index')
-        ->where('documents.0.id', $document->id)
-        ->where('documents.0.tags.0.name', 'Contrats')
+        ->where('documents.data.0.id', $document->id)
+        ->where('documents.data.0.tags.0.name', 'Contrats')
     );
 });

@@ -193,8 +193,8 @@ it('lists previously imported documents on the index page', function () {
 
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Index')
-        ->has('documents', 1)
-        ->where('documents.0.id', $document->id)
-        ->where('documents.0.title', 'contract.pdf')
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $document->id)
+        ->where('documents.data.0.title', 'contract.pdf')
     );
 });

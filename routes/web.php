@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Route;
 $editorImageFilenamePattern = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\.[a-zA-Z0-9]+';
 
 Route::get('/', [DocumentController::class, 'index'])->name('documents.index');
+Route::get('/recherche', [DocumentController::class, 'search'])->name('documents.search');
 Route::post('/documents', [DocumentController::class, 'store'])->name('documents.store');
 // Registered ahead of GET /documents/{document} — otherwise "create" would
 // be captured by that route's model binding instead of reaching create().

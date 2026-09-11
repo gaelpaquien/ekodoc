@@ -51,7 +51,7 @@ it('resyncs the parent document\'s attachments_extracted_text after a detach, dr
     $document->refresh();
     expect($document->attachments_extracted_text)->toBeNull();
 
-    $response = test()->get('/?search=EkoDoc');
+    $response = test()->get('/recherche?search=EkoDoc');
     $response->assertInertia(fn ($page) => $page->has('documents', 0));
 });
 

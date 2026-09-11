@@ -1,6 +1,6 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Link, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 
 // Theme toggle: logic reused verbatim from the old AppHeader.vue (Boundaries
 // & Constraints, spec-3-2 — "réutilisé tel quel, seulement déplacé/restylé
@@ -20,12 +20,14 @@ function toggleTheme() {
     }
 }
 
-// "Bibliothèque" is the only nav item this story ships (Boundaries &
-// Constraints: "Recherche"/"Configuration" wait for their own surfaces,
-// stories 3.4/3.5), and every existing surface — Library, Document Detail,
-// Editor — is reached from it. AC1 requires it to render active ("fond
-// lime") on all three, not only while the URL is exactly `/`.
-const isLibraryActive = true;
+// Active state is route-aware via `usePage().component` (Boundaries &
+// Constraints, spec-3-4) rather than a fixed constant: "Recherche" is
+// active only on its own dedicated surface (`Documents/Search`), and
+// "Bibliothèque" is active on every other existing surface — Library,
+// Document Detail, Editor — same as before (AC1, spec-3-2).
+const page = usePage();
+const isSearchActive = computed(() => page.component === 'Documents/Search');
+const isLibraryActive = computed(() => !isSearchActive.value);
 </script>
 
 <template>
@@ -46,6 +48,16 @@ const isLibraryActive = true;
                 :aria-current="isLibraryActive ? 'page' : undefined"
             >
                 Bibliothèque
+            </Link>
+            <Link
+                href="/recherche"
+                class="rounded-md px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                :class="isSearchActive
+                    ? 'bg-primary font-semibold text-primary-foreground'
+                    : 'text-foreground hover:bg-surface'"
+                :aria-current="isSearchActive ? 'page' : undefined"
+            >
+                Recherche
             </Link>
         </nav>
 

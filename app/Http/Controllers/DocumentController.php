@@ -58,47 +58,74 @@ class DocumentController extends Controller
 
     /**
      * Library entry point: renders one card per document (type badge,
-     * title, tags, date), sorted most recent first, and hosts the Import
-     * modal. Sole point of entry for the documents query — search
-     * (`?search=`, Story 1.6) and tag/type filters (`?tag_id[]=`,
-     * `?type[]=`, Story 1.7/3.1) both converge here (AD-8). Pagination
-     * remains out of scope.
+     * title, tags, date), sorted most recent first and paginated 20 per
+     * page. Sole point of entry for the browse/filter query — tag/type
+     * filters (`?tag_id[]=`, `?type[]=`, Story 1.7/3.1) converge here
+     * (AD-8) through the same applyFilters() the dedicated Recherche
+     * surface also uses (search(), spec-3-4) — never a second/divergent
+     * query path (Boundaries & Constraints, spec-1-7/spec-3-1).
      *
-     * An empty/absent `search` leaves the previous, unfiltered behavior
-     * untouched: `latest()` over `Document::query()`. A non-empty term
-     * instead runs through Scout (driver `database`, indexed on
-     * `extracted_text` only), constrained to the same eager-load via its
-     * query callback — both branches converge on the same `get([...])`.
-     * Filters apply identically to both branches through applyFilters(),
-     * never a second/divergent query path (Boundaries & Constraints,
-     * spec-1-7/spec-3-1).
+     * Fulltext search no longer lives here (moved to search(), spec-3-4):
+     * this method never touches Scout.
      */
     public function index(Request $request): Response
     {
-        $rawSearch = $request->query('search', '');
-        $search = trim(is_scalar($rawSearch) ? (string) $rawSearch : '');
-
         $tagIds = $this->tagIdsFromQuery($request);
         $types = $this->typesFromQuery($request);
 
         $columns = ['id', 'title', 'source', 'mime_type', 'created_at'];
 
+        $documents = $this->applyFilters(Document::query(), $tagIds, $types)
+            ->with('tags:id,name')->latest()->paginate(20, $columns)
+            // Pagination links otherwise carry only `?page=N` — an active
+            // `tag_id[]`/`type[]` filter would silently drop off page 2+
+            // (code review finding, spec-3-4).
+            ->withQueryString();
+
+        return Inertia::render('Documents/Index', [
+            'documents' => $documents,
+            'tagFilters' => $tagIds,
+            'typeFilters' => $types,
+        ]);
+    }
+
+    /**
+     * Dedicated Recherche surface entry point (spec-3-4): fulltext search
+     * (documents + pièces jointes, via Scout's `database` driver, indexed on
+     * `extracted_text`/`attachments_extracted_text`) narrowed by the active
+     * tag filter, never a type filter (Boundaries & Constraints — type stays
+     * specific to the Bibliothèque) and never paginated (single live-
+     * filtered result set).
+     *
+     * A blank (post-trim) term always short-circuits to `documents => []`,
+     * even with a tag selected — Recherche never falls back to showing the
+     * whole library (Boundaries & Constraints, AC2). Reuses applyFilters()/
+     * tagIdsFromQuery() unmodified (AD-8) — the only other caller besides
+     * index().
+     */
+    public function search(Request $request): Response
+    {
+        $rawSearch = $request->query('search', '');
+        $search = trim(is_scalar($rawSearch) ? (string) $rawSearch : '');
+
+        $tagIds = $this->tagIdsFromQuery($request);
+
+        $columns = ['id', 'title', 'source', 'mime_type', 'created_at'];
+
         $documents = $search === ''
-            ? $this->applyFilters(Document::query(), $tagIds, $types)
-                ->with('tags:id,name')->latest()->get($columns)
+            ? []
             // Scout's `database` driver interpolates the term unescaped into a
             // `LIKE '%...%'` clause (Laravel\Scout\Engines\DatabaseEngine) — `%`/`_`
             // are LIKE wildcards, so they're escaped here to keep the match literal.
             : Document::search(addcslashes($search, '%_'))
-                ->query(fn ($query) => $this->applyFilters($query, $tagIds, $types)
+                ->query(fn ($query) => $this->applyFilters($query, $tagIds, [])
                     ->select($columns)->with('tags:id,name')->latest())
                 ->get();
 
-        return Inertia::render('Documents/Index', [
+        return Inertia::render('Documents/Search', [
             'documents' => $documents,
             'search' => $search,
             'tagFilters' => $tagIds,
-            'typeFilters' => $types,
         ]);
     }
 

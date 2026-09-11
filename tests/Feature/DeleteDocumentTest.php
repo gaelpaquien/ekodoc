@@ -64,7 +64,7 @@ it('permanently deletes the file, the preview cache and the document row, then r
     $indexResponse = test()->get('/');
     $indexResponse->assertInertia(fn ($page) => $page
         ->component('Documents/Index')
-        ->where('documents', [])
+        ->where('documents.data', [])
     );
 });
 

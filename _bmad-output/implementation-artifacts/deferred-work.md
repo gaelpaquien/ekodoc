@@ -249,3 +249,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-3-attach-documents.md`
   summary: Aucune distinction visuelle (icône/couleur) entre pièces jointes PDF/Word/Excel dans `AttachmentsPanel.vue`/`Show.vue` — la liste n'affiche qu'un nom de fichier brut, alors que `mime_type` est chargé sur chaque ligne.
   evidence: Blind Hunter (step-04 review) — non requis par la spec ; amélioration UX à bas coût si une session future retouche ces composants (réutiliser `DocumentTypeBadge.vue`, déjà disponible pour le document parent).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-4-search-surface.md`
+  summary: `Sidebar.vue` calcule `isLibraryActive` comme `!isSearchActive` (binaire) plutôt qu'une vérification explicite par surface — fonctionne tant qu'il n'existe que deux items de nav, mais un 3ᵉ item (Configuration, Story 3.5) ferait à tort passer "Bibliothèque" actif dessus aussi.
+  evidence: Blind Hunter (step-04 review) — comportement conforme à l'intent gelé de cette story (spec-3-4 : "sans changer le comportement d'activation de Bibliothèque sur Fiche document/Éditeur"), pas un défaut introduit hors scope ; à corriger explicitement (vérification par surface plutôt que par exclusion) quand la Story 3.5 ajoute l'item Configuration.

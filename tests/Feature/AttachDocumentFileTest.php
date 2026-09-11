@@ -74,7 +74,7 @@ it('becomes searchable through the parent document once its text is extracted, w
     $document->refresh();
     expect($document->attachments_extracted_text)->toContain('EkoDoc sample pdf content');
 
-    $response = test()->get('/?search=EkoDoc');
+    $response = test()->get('/recherche?search=EkoDoc');
 
     $response->assertInertia(fn ($page) => $page
         ->has('documents', 1)

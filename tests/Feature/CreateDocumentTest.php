@@ -150,9 +150,9 @@ it('lists the created document on the library index page', function () {
 
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Index')
-        ->has('documents', 1)
-        ->where('documents.0.id', $document->id)
-        ->where('documents.0.title', 'Notes de projet')
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $document->id)
+        ->where('documents.data.0.title', 'Notes de projet')
     );
 });
 
@@ -163,8 +163,8 @@ it('is immediately filterable via type=created alongside imported documents (Sto
     $response = test()->get('/?type[]=created');
 
     $response->assertInertia(fn ($page) => $page
-        ->has('documents', 1)
-        ->where('documents.0.source', 'created')
+        ->has('documents.data', 1)
+        ->where('documents.data.0.source', 'created')
     );
 });
 
@@ -175,7 +175,7 @@ it('is immediately searchable via its derived extracted_text (Story 1.6)', funct
 
     $document = Document::sole();
 
-    $response = test()->get('/?search=trimestriel');
+    $response = test()->get('/recherche?search=trimestriel');
 
     $response->assertInertia(fn ($page) => $page
         ->has('documents', 1)
@@ -362,7 +362,7 @@ it('is immediately searchable through its relocated draft attachment\'s extracte
     $document->refresh();
     expect($document->attachments_extracted_text)->toContain('EkoDoc sample pdf content');
 
-    $response = test()->get('/?search=EkoDoc');
+    $response = test()->get('/recherche?search=EkoDoc');
     $response->assertInertia(fn ($page) => $page
         ->has('documents', 1)
         ->where('documents.0.id', $document->id)

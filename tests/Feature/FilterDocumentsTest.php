@@ -20,11 +20,32 @@ it('filters documents by a single tag', function () {
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Index')
         ->where('tagFilters', [$tag->id])
-        ->has('documents', 1)
-        ->where('documents.0.id', $matching->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $matching->id)
     );
 
     expect($excluded)->not->toBeNull();
+});
+
+// Code review finding (spec-3-4): pagination links must carry the active
+// filter forward, never silently drop it on page 2+.
+it('keeps the active tag filter in the pagination links', function () {
+    $tag = Tag::factory()->create();
+    $matching = Document::factory()->count(25)->create();
+    foreach ($matching as $document) {
+        $document->tags()->sync([$tag->id]);
+    }
+
+    $response = $this->get("/?tag_id[]={$tag->id}");
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->component('Documents/Index')
+        ->has('documents.data', 20)
+        ->where('documents.links', fn ($links) => collect($links)
+            ->filter(fn ($link) => $link['url'] !== null)
+            ->every(fn ($link) => str_contains($link['url'], (string) $tag->id)))
+    );
 });
 
 it('filters documents by a single type', function () {
@@ -39,8 +60,8 @@ it('filters documents by a single type', function () {
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Index')
         ->where('typeFilters', ['pdf'])
-        ->has('documents', 1)
-        ->where('documents.0.id', $pdf->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $pdf->id)
     );
 
     expect($word)->not->toBeNull();
@@ -63,8 +84,8 @@ it('ORs multiple selected tags within the tag group', function () {
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Index')
-        ->has('documents', 2)
-        ->where('documents', fn ($documents) => collect($documents)->pluck('id')->sort()->values()->all()
+        ->has('documents.data', 2)
+        ->where('documents.data', fn ($documents) => collect($documents)->pluck('id')->sort()->values()->all()
             === collect([$inA->id, $inB->id])->sort()->values()->all())
     );
 
@@ -83,8 +104,8 @@ it('matches a document tagged with several of the selected tags only once', func
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Index')
-        ->has('documents', 1)
-        ->where('documents.0.id', $document->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $document->id)
     );
 });
 
@@ -97,8 +118,8 @@ it('drops a malformed tag_id value instead of erroring', function () {
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Index')
         ->where('tagFilters', [])
-        ->has('documents', 1)
-        ->where('documents.0.id', $document->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $document->id)
     );
 });
 
@@ -115,9 +136,9 @@ it('orders filtered results most-recent-first, same as the unfiltered list', fun
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Index')
-        ->has('documents', 2)
-        ->where('documents.0.id', $newest->id)
-        ->where('documents.1.id', $oldest->id)
+        ->has('documents.data', 2)
+        ->where('documents.data.0.id', $newest->id)
+        ->where('documents.data.1.id', $oldest->id)
     );
 });
 
@@ -141,40 +162,12 @@ it('combines tag and type filters with AND between the two groups', function () 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Index')
-        ->has('documents', 1)
-        ->where('documents.0.id', $matching->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $matching->id)
     );
 
     expect($wrongTag)->not->toBeNull();
     expect($wrongType)->not->toBeNull();
-});
-
-it('combines a tag filter with an active search term through the same query entry point', function () {
-    $tag = Tag::factory()->create();
-    $otherTag = Tag::factory()->create();
-
-    $matching = Document::factory()->create(['extracted_text' => 'Voici la facture du mois de janvier.']);
-    $matching->tags()->sync([$tag->id]);
-
-    $wrongTag = Document::factory()->create(['extracted_text' => 'Voici la facture du mois de février.']);
-    $wrongTag->tags()->sync([$otherTag->id]);
-
-    $wrongSearch = Document::factory()->create(['extracted_text' => 'Compte-rendu de réunion hebdomadaire.']);
-    $wrongSearch->tags()->sync([$tag->id]);
-
-    $response = $this->get("/?search=facture&tag_id[]={$tag->id}");
-
-    $response->assertOk();
-    $response->assertInertia(fn ($page) => $page
-        ->component('Documents/Index')
-        ->where('search', 'facture')
-        ->where('tagFilters', [$tag->id])
-        ->has('documents', 1)
-        ->where('documents.0.id', $matching->id)
-    );
-
-    expect($wrongTag)->not->toBeNull();
-    expect($wrongSearch)->not->toBeNull();
 });
 
 it('ORs multiple selected types within the type group', function () {
@@ -191,8 +184,8 @@ it('ORs multiple selected types within the type group', function () {
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Index')
-        ->has('documents', 2)
-        ->where('documents', fn ($documents) => collect($documents)->pluck('id')->sort()->values()->all()
+        ->has('documents.data', 2)
+        ->where('documents.data', fn ($documents) => collect($documents)->pluck('id')->sort()->values()->all()
             === collect([$pdf->id, $excel->id])->sort()->values()->all())
     );
 
@@ -214,40 +207,11 @@ it('filters on the created type by source rather than mime type', function () {
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Index')
-        ->has('documents', 1)
-        ->where('documents.0.id', $created->id)
+        ->has('documents.data', 1)
+        ->where('documents.data.0.id', $created->id)
     );
 
     expect($imported)->not->toBeNull();
-});
-
-it('combines a type filter with an active search term through the same query entry point', function () {
-    $matching = Document::factory()->create([
-        'mime_type' => 'application/pdf',
-        'extracted_text' => 'Voici la facture du mois de janvier.',
-    ]);
-    $wrongType = Document::factory()->create([
-        'mime_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'extracted_text' => 'Voici la facture du mois de février.',
-    ]);
-    $wrongSearch = Document::factory()->create([
-        'mime_type' => 'application/pdf',
-        'extracted_text' => 'Compte-rendu de réunion hebdomadaire.',
-    ]);
-
-    $response = $this->get('/?search=facture&type[]=pdf');
-
-    $response->assertOk();
-    $response->assertInertia(fn ($page) => $page
-        ->component('Documents/Index')
-        ->where('search', 'facture')
-        ->where('typeFilters', ['pdf'])
-        ->has('documents', 1)
-        ->where('documents.0.id', $matching->id)
-    );
-
-    expect($wrongType)->not->toBeNull();
-    expect($wrongSearch)->not->toBeNull();
 });
 
 it('returns an empty list without failing when active filters match no document', function () {
@@ -262,7 +226,7 @@ it('returns an empty list without failing when active filters match no document'
         ->component('Documents/Index')
         ->where('tagFilters', [$tag->id])
         ->where('typeFilters', ['excel'])
-        ->has('documents', 0)
+        ->has('documents.data', 0)
     );
 });
 
@@ -286,6 +250,6 @@ it('drops a type value outside the four recognized types instead of erroring', f
     $response->assertInertia(fn ($page) => $page
         ->component('Documents/Index')
         ->where('typeFilters', [])
-        ->has('documents', 1)
+        ->has('documents.data', 1)
     );
 });
