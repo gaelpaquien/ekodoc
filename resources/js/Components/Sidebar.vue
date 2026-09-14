@@ -76,7 +76,10 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
             EkoDoc - Démo
         </span>
 
-        <nav class="flex flex-col gap-0.5" aria-label="Navigation principale">
+        <hr class="mb-3 border-border" />
+
+        <div class="flex flex-col gap-0.5">
+        <nav class="contents" aria-label="Navigation principale">
             <Link
                 href="/"
                 class="flex items-center gap-2 rounded-md px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
@@ -156,11 +159,15 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
             </Link>
         </nav>
 
-        <div class="flex-1"></div>
-
+        <!-- Toggle thème : dans la liste des boutons juste après Configuration
+        (retouche sidebar demandée en conversation), mais volontairement hors
+        de <nav aria-label="Navigation principale"> — ce n'est pas une
+        destination de navigation, seulement un bouton d'état. `nav` est en
+        `display:contents` ci-dessus pour que ses liens restent des items flex
+        de ce conteneur, avec le même espacement (`gap-0.5`) que ce bouton. -->
         <button
             type="button"
-            class="flex items-center justify-center gap-2 rounded-md px-3 py-2 text-xs text-muted transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+            class="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
             :aria-label="isDark ? 'Passer en mode clair' : 'Passer en mode sombre'"
             @click="toggleTheme"
         >
@@ -173,9 +180,18 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
             </svg>
             {{ isDark ? 'Thème sombre' : 'Thème clair' }}
         </button>
+        </div>
 
-        <p class="px-3 pt-1 text-center text-sm text-muted">
-            Made with 💔 Claude
+        <div class="flex-1"></div>
+
+        <p class="flex items-center justify-center gap-1 px-3 pt-1 text-center text-sm text-muted">
+            Made with
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+                <path d="M12 20.5s-7.5-4.6-9.7-9.1C.7 8 2 4.5 5.3 3.8c2-.4 3.9.6 4.7 2.2.8-1.6 2.7-2.6 4.7-2.2C18 4.5 19.3 8 17.7 11.4 15.5 15.9 12 20.5 12 20.5Z" />
+                <line x1="4" y1="4" x2="20" y2="20" />
+                <line x1="20" y1="4" x2="4" y2="20" />
+            </svg>
+            Claude
         </p>
     </aside>
 </template>
