@@ -427,11 +427,7 @@ onBeforeUnmount(() => {
 <template>
     <AppLayout>
         <div class="mx-auto max-w-3xl px-4 py-10">
-            <Link href="/" class="text-sm text-muted hover:text-foreground hover:underline">
-                &larr; Retour à la bibliothèque
-            </Link>
-
-            <h1 class="mt-4 text-2xl font-semibold text-foreground">
+            <h1 class="text-2xl font-semibold text-foreground">
                 {{ document.title }}
             </h1>
 

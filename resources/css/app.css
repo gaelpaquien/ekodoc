@@ -25,7 +25,7 @@
     --radius-md: 8px;
     --radius-lg: 12px;
 
-    --spacing-sidebar-width: 220px;
+    --spacing-sidebar-width: 240px;
 }
 
 /* Dark pairing — this app resolves the theme purely via the `.dark` class

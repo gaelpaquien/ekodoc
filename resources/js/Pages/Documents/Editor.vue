@@ -1,5 +1,5 @@
 <script setup>
-import { Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import { EditorContent, useEditor } from '@tiptap/vue-3';
 import StarterKit from '@tiptap/starter-kit';
 import { Table } from '@tiptap/extension-table';
@@ -544,11 +544,7 @@ function submit() {
 <template>
     <AppLayout>
         <div class="mx-auto max-w-3xl px-4 py-10">
-            <Link href="/" class="text-sm text-muted hover:text-foreground hover:underline">
-                &larr; Retour à la bibliothèque
-            </Link>
-
-            <div class="mt-4">
+            <div>
                 <label for="document-title" class="mb-1 block text-sm font-medium text-foreground">
                     Titre
                 </label>

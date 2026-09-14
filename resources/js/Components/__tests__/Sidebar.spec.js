@@ -11,7 +11,7 @@ import Sidebar from '@/Components/Sidebar.vue';
 // return value) lets each test set the current page's component name.
 vi.mock('@inertiajs/vue3', async () => {
     const { reactive } = await import('vue');
-    const pageState = reactive({ component: 'Documents/Index' });
+    const pageState = reactive({ component: 'Documents/Index', props: {} });
 
     return {
         Link: {
@@ -42,6 +42,7 @@ const pageState = usePage();
 describe('Sidebar', () => {
     afterEach(() => {
         pageState.component = 'Documents/Index';
+        pageState.props = {};
 
         document.documentElement.classList.remove('dark');
 
@@ -56,16 +57,17 @@ describe('Sidebar', () => {
         const wrapper = mount(Sidebar);
 
         expect(wrapper.text()).toContain('EkoDoc');
-        expect(wrapper.text()).toContain('Bibliothèque');
+        expect(wrapper.text()).toContain('Documents');
         expect(wrapper.text()).toContain('Recherche');
         expect(wrapper.text()).toContain('Configuration');
         expect(wrapper.text()).toContain('Made with 💔 Claude');
     });
 
-    // AC1: "Créer un document" and "Importer" render at the top of the
-    // sidebar, above the nav links, on every surface (Boundaries &
-    // Constraints: no fixed page condition gates them).
-    it('renders "Créer un document" and "Importer" above the nav links', () => {
+    // AC1: "Créer un document" and "Importer un document" render as part of
+    // the same nav list as "Documents"/"Recherche"/"Configuration", in
+    // order, on every surface (Boundaries & Constraints: no fixed page
+    // condition gates them).
+    it('renders "Créer un document" and "Importer un document" between Documents and Recherche', () => {
         const wrapper = mount(Sidebar);
 
         const createLink = wrapper.find('a[href="/documents/create"]');
@@ -73,27 +75,75 @@ describe('Sidebar', () => {
         expect(createLink.text()).toBe('Créer un document');
 
         const buttons = wrapper.findAll('button');
-        expect(buttons[0].text()).toBe('Importer');
+        expect(buttons[0].text()).toBe('Importer un document');
+
+        const items = wrapper.findAll('nav a, nav button').map((item) => item.text());
+        expect(items).toEqual(['Documents', 'Créer un document', 'Importer un document', 'Recherche', 'Configuration']);
     });
 
-    // AC3: clicking "Importer" opens the modal (rendered here via the
-    // stubbed ImportModal, `open` prop reflecting the click).
-    it('opens the import modal when "Importer" is clicked', async () => {
+    // AC3: clicking "Importer un document" opens the modal (rendered here
+    // via the stubbed ImportModal, `open` prop reflecting the click).
+    it('opens the import modal when "Importer un document" is clicked', async () => {
         const wrapper = mount(Sidebar);
 
         expect(wrapper.find('[data-testid="import-modal-stub"]').exists()).toBe(false);
 
-        const importButton = wrapper.findAll('button').find((button) => button.text() === 'Importer');
+        const importButton = wrapper.findAll('button').find((button) => button.text() === 'Importer un document');
         await importButton.trigger('click');
 
         expect(wrapper.find('[data-testid="import-modal-stub"]').exists()).toBe(true);
     });
 
-    // AC1/AC5: "Bibliothèque" renders active on every surface except the
+    // "Créer un document" renders with the same lime active treatment as the
+    // nav links, but only on the create route itself (`Documents/Editor`
+    // with no `document` prop) — not while editing an existing document.
+    // "Documents" and "Créer un document" are mutually exclusive: only one
+    // reads as current at a time, even though both cover `Documents/Editor`.
+    it('renders "Créer un document" as active only on the create route, "Documents" turning inactive there — and the reverse while editing', () => {
+        pageState.component = 'Documents/Editor';
+        pageState.props = {};
+        const createWrapper = mount(Sidebar);
+        const create = createWrapper.find('a[href="/documents/create"]');
+        const documentsLink = createWrapper.find('a[href="/"]');
+
+        expect(create.attributes('aria-current')).toBe('page');
+        expect(create.classes()).toContain('bg-primary');
+        expect(documentsLink.attributes('aria-current')).toBeUndefined();
+        expect(documentsLink.classes()).not.toContain('bg-primary');
+
+        pageState.props = { document: { id: 1, title: 'Existing' } };
+        const editWrapper = mount(Sidebar);
+        const edit = editWrapper.find('a[href="/documents/create"]');
+        const documentsLinkWhileEditing = editWrapper.find('a[href="/"]');
+
+        expect(edit.attributes('aria-current')).toBeUndefined();
+        expect(edit.classes()).not.toContain('bg-primary');
+        expect(documentsLinkWhileEditing.attributes('aria-current')).toBe('page');
+        expect(documentsLinkWhileEditing.classes()).toContain('bg-primary');
+    });
+
+    // "Importer un document" opens a modal, not a page — it never gets the
+    // nav links' lime active treatment (Boundaries & Constraints: no page
+    // change, so no "active" state applies), whether or not the modal is
+    // currently open.
+    it('never renders "Importer un document" with the active treatment, modal open or closed', async () => {
+        const wrapper = mount(Sidebar);
+        const importButton = wrapper.findAll('button').find((button) => button.text() === 'Importer un document');
+
+        expect(importButton.attributes('aria-current')).toBeUndefined();
+        expect(importButton.attributes('aria-pressed')).toBeUndefined();
+        expect(importButton.classes()).not.toContain('bg-primary');
+
+        await importButton.trigger('click');
+
+        expect(importButton.classes()).not.toContain('bg-primary');
+    });
+
+    // AC1/AC5: "Documents" renders active on every surface except the
     // dedicated Recherche/Configuration ones (Library, Document Detail,
     // Editor — spec-3-2/spec-3-5), driven by `usePage().component` rather
     // than a fixed constant.
-    it('renders the Bibliothèque nav item as active when the current page is not Recherche', () => {
+    it('renders the Documents nav item as active when the current page is not Recherche', () => {
         pageState.component = 'Documents/Show';
         const wrapper = mount(Sidebar);
         const navLink = wrapper.find('a[href="/"]');
@@ -108,9 +158,12 @@ describe('Sidebar', () => {
     // Retro Epic 3, item 12: `isLibraryActive` is now an explicit whitelist
     // of `Documents/*` surfaces rather than an exclusion — this asserts the
     // Editor is actually one of the listed entries, not just that some
-    // surface (Show, above) still works.
-    it('renders the Bibliothèque nav item as active on the Documents/Editor page', () => {
+    // surface (Show, above) still works. Uses edit mode (`document` prop
+    // present): create mode is "Créer un document"'s own active state
+    // instead, covered separately above.
+    it('renders the Documents nav item as active on the Documents/Editor page while editing an existing document', () => {
         pageState.component = 'Documents/Editor';
+        pageState.props = { document: { id: 1, title: 'Existing' } };
         const wrapper = mount(Sidebar);
         const navLink = wrapper.find('a[href="/"]');
 
@@ -119,8 +172,8 @@ describe('Sidebar', () => {
     });
 
     // AC1: a "Recherche" item links to `/recherche` and renders active only
-    // on that dedicated surface, "Bibliothèque" turning inactive there.
-    it('renders the Recherche nav item as active on the Documents/Search page, Bibliothèque turning inactive', () => {
+    // on that dedicated surface, "Documents" turning inactive there.
+    it('renders the Recherche nav item as active on the Documents/Search page, Documents turning inactive', () => {
         pageState.component = 'Documents/Search';
         const wrapper = mount(Sidebar);
         const navLink = wrapper.find('a[href="/"]');
@@ -134,9 +187,9 @@ describe('Sidebar', () => {
     });
 
     // Code Map, spec-3-5: a "Configuration" item links to `/configuration`
-    // and renders active only on that dedicated surface, "Bibliothèque"
+    // and renders active only on that dedicated surface, "Documents"
     // turning inactive there too, same shape as the Recherche case above.
-    it('renders the Configuration nav item as active on the Documents/Configuration page, Bibliothèque turning inactive', () => {
+    it('renders the Configuration nav item as active on the Documents/Configuration page, Documents turning inactive', () => {
         pageState.component = 'Documents/Configuration';
         const wrapper = mount(Sidebar);
         const navLink = wrapper.find('a[href="/"]');
@@ -153,7 +206,7 @@ describe('Sidebar', () => {
     // whitelist of `Documents/*` surfaces, not "everything that isn't
     // Recherche/Configuration" — a future, unlisted `Documents/X` page must
     // default to no nav item active at all, rather than silently lighting up
-    // "Bibliothèque".
+    // "Documents".
     it('activates no nav item for a Documents/* surface not in the whitelist', () => {
         pageState.component = 'Documents/X';
         const wrapper = mount(Sidebar);
@@ -165,8 +218,8 @@ describe('Sidebar', () => {
 
     // AC5: navigating away from a document reached through the Recherche
     // results (i.e. landing back on a non-Search surface) restores
-    // "Bibliothèque" as active.
-    it('restores Bibliothèque as active after navigating from Recherche to another surface', () => {
+    // "Documents" as active.
+    it('restores Documents as active after navigating from Recherche to another surface', () => {
         pageState.component = 'Documents/Search';
         const wrapper = mount(Sidebar);
         expect(wrapper.find('a[href="/"]').attributes('aria-current')).toBeUndefined();
@@ -180,22 +233,25 @@ describe('Sidebar', () => {
     });
 
     // I/O matrix "Navigation clavier sidebar", updated by
-    // spec-sidebar-document-actions: focus order is now "Créer un document"
-    // then "Importer" then the three nav links then the theme toggle then
-    // footer — the footer itself is static text, not a separate focusable
-    // stop.
-    it('exposes "Créer un document", "Importer", the three nav links then the theme toggle as focusable items, in that order', () => {
+    // spec-sidebar-document-actions: focus order is now Documents, Créer un
+    // document, Importer un document, Recherche, Configuration, then the
+    // theme toggle then footer — the footer itself is static text, not a
+    // separate focusable stop.
+    it('exposes Documents, Créer un document, Importer un document, Recherche, Configuration then the theme toggle as focusable items, in that order', () => {
         const wrapper = mount(Sidebar);
         const focusable = wrapper.findAll('a, button');
 
         expect(focusable).toHaveLength(6);
         expect(focusable[0].element.tagName).toBe('A');
-        expect(focusable[0].text()).toBe('Créer un document');
-        expect(focusable[1].element.tagName).toBe('BUTTON');
-        expect(focusable[1].text()).toBe('Importer');
-        expect(focusable[2].element.tagName).toBe('A');
+        expect(focusable[0].text()).toBe('Documents');
+        expect(focusable[1].element.tagName).toBe('A');
+        expect(focusable[1].text()).toBe('Créer un document');
+        expect(focusable[2].element.tagName).toBe('BUTTON');
+        expect(focusable[2].text()).toBe('Importer un document');
         expect(focusable[3].element.tagName).toBe('A');
+        expect(focusable[3].text()).toBe('Recherche');
         expect(focusable[4].element.tagName).toBe('A');
+        expect(focusable[4].text()).toBe('Configuration');
         expect(focusable[5].element.tagName).toBe('BUTTON');
     });
 

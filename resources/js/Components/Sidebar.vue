@@ -42,7 +42,19 @@ const LIBRARY_SURFACES = ['Documents/Index', 'Documents/Editor', 'Documents/Show
 const page = usePage();
 const isSearchActive = computed(() => page.component === 'Documents/Search');
 const isConfigActive = computed(() => page.component === 'Documents/Configuration');
-const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component));
+
+// "Créer un document" gets its own active state: `Documents/Editor` serves
+// both create (`document` prop null/absent) and edit (prop present) — only
+// the former is "Créer un document" itself, matching what the URL/action
+// actually is.
+const isCreateActive = computed(() => page.component === 'Documents/Editor' && !page.props.document);
+
+// `isLibraryActive` excludes the create route: without this, "Documents"
+// and "Créer un document" would both light up lime at once on
+// `/documents/create` (both cover `Documents/Editor`) — one nav item should
+// read as "current" at a time, so create mode belongs to "Créer un
+// document" alone, editing an existing document still to "Documents".
+const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component) && !isCreateActive.value);
 
 // "Créer un document"/"Importer" moved here from Documents/Index.vue (spec
 // spec-sidebar-document-actions) so both actions are available on all 5
@@ -54,57 +66,85 @@ const isImportModalOpen = ref(false);
 
 <template>
     <aside
-        class="sticky top-0 flex h-screen w-sidebar-width shrink-0 flex-col overflow-y-auto border-r border-border bg-surface-alt px-3 py-5 text-foreground"
+        class="sticky top-0 flex h-screen w-sidebar-width shrink-0 flex-col overflow-y-auto border-r border-border bg-surface-alt px-4 py-5 text-foreground"
     >
         <span class="mb-5 block px-2 text-sm font-semibold tracking-tight">
             EkoDoc
         </span>
 
-        <div class="mb-5 flex flex-col gap-2" role="group" aria-label="Actions document">
-            <Link
-                href="/documents/create"
-                class="rounded-md border border-border bg-surface-alt px-4 py-2 text-center text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-            >
-                Créer un document
-            </Link>
-            <button
-                type="button"
-                class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                @click="isImportModalOpen = true"
-            >
-                Importer
-            </button>
-        </div>
-
         <nav class="flex flex-col gap-0.5" aria-label="Navigation principale">
             <Link
                 href="/"
-                class="rounded-md px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                class="flex items-center gap-2 rounded-md px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                 :class="isLibraryActive
                     ? 'bg-primary font-semibold text-primary-foreground'
                     : 'text-foreground hover:bg-surface'"
                 :aria-current="isLibraryActive ? 'page' : undefined"
             >
-                Bibliothèque
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+                    <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H12v18H6.5A2.5 2.5 0 0 1 4 18.5v-13Z" />
+                    <path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H12v18h5.5a2.5 2.5 0 0 0 2.5-2.5v-13Z" />
+                </svg>
+                Documents
             </Link>
             <Link
+                href="/documents/create"
+                class="flex items-center gap-2 rounded-md px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                :class="isCreateActive
+                    ? 'bg-primary font-semibold text-primary-foreground'
+                    : 'text-foreground hover:bg-surface'"
+                :aria-current="isCreateActive ? 'page' : undefined"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+                    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" />
+                    <path d="M14 3v5h5" />
+                    <line x1="9.5" y1="15" x2="14.5" y2="15" />
+                    <line x1="12" y1="12.5" x2="12" y2="17.5" />
+                </svg>
+                Créer un document
+            </Link>
+            <button
+                type="button"
+                class="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                @click="isImportModalOpen = true"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+                    <path d="M12 15V3" />
+                    <path d="m7 8 5-5 5 5" />
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                </svg>
+                Importer un document
+            </button>
+            <Link
                 href="/recherche"
-                class="rounded-md px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                class="flex items-center gap-2 rounded-md px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                 :class="isSearchActive
                     ? 'bg-primary font-semibold text-primary-foreground'
                     : 'text-foreground hover:bg-surface'"
                 :aria-current="isSearchActive ? 'page' : undefined"
             >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m21 21-4.3-4.3" />
+                </svg>
                 Recherche
             </Link>
             <Link
                 href="/configuration"
-                class="rounded-md px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                class="flex items-center gap-2 rounded-md px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                 :class="isConfigActive
                     ? 'bg-primary font-semibold text-primary-foreground'
                     : 'text-foreground hover:bg-surface'"
                 :aria-current="isConfigActive ? 'page' : undefined"
             >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+                    <line x1="4" y1="6" x2="20" y2="6" />
+                    <circle cx="9" cy="6" r="2" />
+                    <line x1="4" y1="12" x2="20" y2="12" />
+                    <circle cx="15" cy="12" r="2" />
+                    <line x1="4" y1="18" x2="20" y2="18" />
+                    <circle cx="7" cy="18" r="2" />
+                </svg>
                 Configuration
             </Link>
         </nav>
