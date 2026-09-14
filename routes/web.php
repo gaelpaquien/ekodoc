@@ -22,6 +22,10 @@ Route::post('/tags', [TagController::class, 'store'])->name('tags.store');
 Route::patch('/tags/{tag}', [TagController::class, 'update'])->name('tags.update');
 Route::delete('/tags/{tag}', [TagController::class, 'destroy'])->name('tags.destroy');
 Route::post('/documents', [DocumentController::class, 'store'])->name('documents.store');
+// Registered ahead of GET /documents/{document} — otherwise "import" would
+// be captured by that route's model binding instead of reaching import(),
+// same precaution as /documents/create just below.
+Route::get('/documents/import', [DocumentController::class, 'import'])->name('documents.import');
 // Registered ahead of GET /documents/{document} — otherwise "create" would
 // be captured by that route's model binding instead of reaching create().
 Route::get('/documents/create', [DocumentController::class, 'create'])->name('documents.create');

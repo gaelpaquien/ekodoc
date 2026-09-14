@@ -293,3 +293,11 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-corrections-post-retrospective-epic-3.md`
   summary: Le docblock de `app/Models/Tag.php` est obsolète — il indique encore que la création/le renommage/la suppression d'un tag sont "hors périmètre de la story 3.5" et que les lignes viennent de `TagFactory`/tinker, alors que `TagController` gère déjà entièrement le CRUD (confirmé par cette même spec et par `HandleInertiaRequests.php`, dont le commentaire miroir a déjà été corrigé).
   evidence: Blind Hunter (step-04 review) — désynchronisation préexistante (non introduite par cette spec), simple mise à jour de commentaire, hors périmètre de fichiers annoncé (`Tag.php` non listé dans le Code Map).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-import-document-page.md`
+  summary: Aucun test au niveau composant Vue ne couvre `resources/js/Pages/Documents/Import.vue` (glisser-déposer, validation format/taille, message d'erreur, désactivation pendant `form.processing`) — même absence de coverage que l'ancien `ImportModal.vue` (jamais eu de `.spec.js` dédié depuis spec-1-1).
+  evidence: Blind Hunter (step-04 review) — écart préexistant, pas introduit par cette story : la logique migre verbatim vers la nouvelle page sans jamais avoir eu de test composant. Seule la route (`GET /documents/import`) est désormais testée côté Feature.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-import-document-page.md`
+  summary: Sur `Documents/Import.vue`, seul le bouton "Parcourir" est désactivé pendant `form.processing` — la zone de glisser-déposer et `TagSelector` restent interactifs, permettant de déposer un second fichier ou de modifier les tags pendant un import en cours.
+  evidence: Edge Case Hunter (step-04 review) — défaut préexistant dans `ImportModal.vue` depuis spec-1-1, reproduit à l'identique par la migration verbatim vers la page ; correctif trivial si une session future retouche ce fichier (garde `if (form.processing) return;` en tête de `handleFile()`, `:disabled` sur la zone de drop/`TagSelector`).

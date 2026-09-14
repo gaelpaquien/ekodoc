@@ -1,7 +1,6 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
-import ImportModal from '@/Components/ImportModal.vue';
 
 // Theme toggle: logic reused verbatim from the old AppHeader.vue (Boundaries
 // & Constraints, spec-3-2 — "réutilisé tel quel, seulement déplacé/restylé
@@ -49,6 +48,12 @@ const isConfigActive = computed(() => page.component === 'Documents/Configuratio
 // actually is.
 const isCreateActive = computed(() => page.component === 'Documents/Editor' && !page.props.document);
 
+// "Importer un document" gets its own active state, mirroring
+// isCreateActive above (spec-import-document-page) — now a dedicated page
+// (`Documents/Import`) reached via a plain `Link`, not a modal, so it needs
+// the same route-aware active treatment as "Créer un document".
+const isImportActive = computed(() => page.component === 'Documents/Import');
+
 // `isLibraryActive` excludes the create route: without this, "Documents"
 // and "Créer un document" would both light up lime at once on
 // `/documents/create` (both cover `Documents/Editor`) — one nav item should
@@ -58,10 +63,9 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
 
 // "Créer un document"/"Importer" moved here from Documents/Index.vue (spec
 // spec-sidebar-document-actions) so both actions are available on all 5
-// surfaces, not just the Library page content. ImportModal is reused as-is;
-// the component that triggers it owns its open state, same convention as
-// the former Index.vue.
-const isImportModalOpen = ref(false);
+// surfaces, not just the Library page content. "Importer un document" now
+// navigates to its own dedicated page (spec-import-document-page) instead
+// of opening a modal — no more open-state ref to own here.
 </script>
 
 <template>
@@ -103,10 +107,13 @@ const isImportModalOpen = ref(false);
                 </svg>
                 Créer un document
             </Link>
-            <button
-                type="button"
-                class="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                @click="isImportModalOpen = true"
+            <Link
+                href="/documents/import"
+                class="flex items-center gap-2 rounded-md px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                :class="isImportActive
+                    ? 'bg-primary font-semibold text-primary-foreground'
+                    : 'text-foreground hover:bg-surface'"
+                :aria-current="isImportActive ? 'page' : undefined"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
                     <path d="M12 15V3" />
@@ -114,7 +121,7 @@ const isImportModalOpen = ref(false);
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 </svg>
                 Importer un document
-            </button>
+            </Link>
             <Link
                 href="/recherche"
                 class="flex items-center gap-2 rounded-md px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
@@ -171,6 +178,4 @@ const isImportModalOpen = ref(false);
             Made with 💔 Claude
         </p>
     </aside>
-
-    <ImportModal :open="isImportModalOpen" @close="isImportModalOpen = false" />
 </template>

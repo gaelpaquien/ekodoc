@@ -1,9 +1,10 @@
 import { ref } from 'vue';
 
 /**
- * Shared drag-and-drop/file-picker plumbing behind ImportModal.vue (spec-3-1)
- * and AttachmentsPanel.vue (spec-3-3) — extracted from ImportModal.vue
- * verbatim (Code Map, spec-3-3) so the accepted-extension/size validation
+ * Shared drag-and-drop/file-picker plumbing behind Pages/Documents/Import.vue
+ * (spec-import-document-page, formerly ImportModal.vue, spec-3-1) and
+ * AttachmentsPanel.vue (spec-3-3) — extracted from ImportModal.vue verbatim
+ * (Code Map, spec-3-3) so the accepted-extension/size validation
  * and drag-state handling never drift between the two call sites. Never
  * touches the network itself — each host still owns its own submit
  * (`form.post()`/`router.post()`), this composable only ever answers "is

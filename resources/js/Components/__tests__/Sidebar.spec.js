@@ -23,20 +23,6 @@ vi.mock('@inertiajs/vue3', async () => {
     };
 });
 
-// ImportModal is stubbed (spec-sidebar-document-actions, Code Map): the real
-// component calls `useForm()` from `@inertiajs/vue3` unconditionally at
-// setup time, which the mock above doesn't provide — this file only needs
-// to assert that Sidebar renders it and drives its `open` prop.
-// Same reusable-stub convention as the `Link` mock above.
-vi.mock('@/Components/ImportModal.vue', () => ({
-    default: {
-        name: 'ImportModal',
-        props: ['open'],
-        emits: ['close'],
-        template: '<div v-if="open" data-testid="import-modal-stub">ImportModal stub</div>',
-    },
-}));
-
 const pageState = usePage();
 
 describe('Sidebar', () => {
@@ -74,24 +60,23 @@ describe('Sidebar', () => {
         expect(createLink.exists()).toBe(true);
         expect(createLink.text()).toBe('Créer un document');
 
-        const buttons = wrapper.findAll('button');
-        expect(buttons[0].text()).toBe('Importer un document');
+        const importLink = wrapper.find('a[href="/documents/import"]');
+        expect(importLink.exists()).toBe(true);
+        expect(importLink.text()).toBe('Importer un document');
 
         const items = wrapper.findAll('nav a, nav button').map((item) => item.text());
         expect(items).toEqual(['Documents', 'Créer un document', 'Importer un document', 'Recherche', 'Configuration']);
     });
 
-    // AC3: clicking "Importer un document" opens the modal (rendered here
-    // via the stubbed ImportModal, `open` prop reflecting the click).
-    it('opens the import modal when "Importer un document" is clicked', async () => {
+    // spec-import-document-page: "Importer un document" is now a plain
+    // `Link` to its own dedicated page, exactly like "Créer un document" —
+    // no more modal to open, just an Inertia navigation to `/documents/import`.
+    it('navigates to /documents/import via a Link, no modal involved', () => {
         const wrapper = mount(Sidebar);
 
+        const importLink = wrapper.find('a[href="/documents/import"]');
+        expect(importLink.exists()).toBe(true);
         expect(wrapper.find('[data-testid="import-modal-stub"]').exists()).toBe(false);
-
-        const importButton = wrapper.findAll('button').find((button) => button.text() === 'Importer un document');
-        await importButton.trigger('click');
-
-        expect(wrapper.find('[data-testid="import-modal-stub"]').exists()).toBe(true);
     });
 
     // "Créer un document" renders with the same lime active treatment as the
@@ -122,21 +107,20 @@ describe('Sidebar', () => {
         expect(documentsLinkWhileEditing.classes()).toContain('bg-primary');
     });
 
-    // "Importer un document" opens a modal, not a page — it never gets the
-    // nav links' lime active treatment (Boundaries & Constraints: no page
-    // change, so no "active" state applies), whether or not the modal is
-    // currently open.
-    it('never renders "Importer un document" with the active treatment, modal open or closed', async () => {
+    // spec-import-document-page: "Importer un document" now renders with the
+    // same lime active treatment as the nav links, active only on its own
+    // dedicated page (`Documents/Import`) — mirrors the "Créer un document"
+    // active-state test above.
+    it('renders "Importer un document" as active only on the Documents/Import page, Documents turning inactive', () => {
+        pageState.component = 'Documents/Import';
         const wrapper = mount(Sidebar);
-        const importButton = wrapper.findAll('button').find((button) => button.text() === 'Importer un document');
+        const importLink = wrapper.find('a[href="/documents/import"]');
+        const documentsLink = wrapper.find('a[href="/"]');
 
-        expect(importButton.attributes('aria-current')).toBeUndefined();
-        expect(importButton.attributes('aria-pressed')).toBeUndefined();
-        expect(importButton.classes()).not.toContain('bg-primary');
-
-        await importButton.trigger('click');
-
-        expect(importButton.classes()).not.toContain('bg-primary');
+        expect(importLink.attributes('aria-current')).toBe('page');
+        expect(importLink.classes()).toContain('bg-primary');
+        expect(documentsLink.attributes('aria-current')).toBeUndefined();
+        expect(documentsLink.classes()).not.toContain('bg-primary');
     });
 
     // AC1/AC5: "Documents" renders active on every surface except the
@@ -246,7 +230,7 @@ describe('Sidebar', () => {
         expect(focusable[0].text()).toBe('Documents');
         expect(focusable[1].element.tagName).toBe('A');
         expect(focusable[1].text()).toBe('Créer un document');
-        expect(focusable[2].element.tagName).toBe('BUTTON');
+        expect(focusable[2].element.tagName).toBe('A');
         expect(focusable[2].text()).toBe('Importer un document');
         expect(focusable[3].element.tagName).toBe('A');
         expect(focusable[3].text()).toBe('Recherche');

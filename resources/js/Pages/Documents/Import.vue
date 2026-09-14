@@ -1,17 +1,23 @@
 <script setup>
-import { useForm } from '@inertiajs/vue3';
-import { computed, nextTick, ref, watch } from 'vue';
+import { router, useForm } from '@inertiajs/vue3';
+import { computed, onUnmounted, ref } from 'vue';
+import AppLayout from '@/Layouts/AppLayout.vue';
 import TagSelector from '@/Components/TagSelector.vue';
 import { useFileDropZone } from '@/Composables/useFileDropZone';
 
-const props = defineProps({
-    open: {
-        type: Boolean,
-        default: false,
-    },
-});
-
-const emit = defineEmits(['close']);
+// Dedicated page (spec-import-document-page) replacing the former
+// `ImportModal.vue` popup — same dropzone/TagSelector/useForm logic, minus
+// every modal-only concern (role="dialog", focus trap, Escape, focus
+// restoration to the trigger): an Inertia page already handles all of that
+// natively, same reasoning as Editor.vue's own migration off a modal.
+//
+// One modal-era guarantee still needed an explicit replacement: the old
+// overlay physically blocked clicks on the sidebar while open, so an
+// in-flight upload could never be interrupted by navigating away. A plain
+// page has no such shield — the sidebar stays fully clickable — so a
+// `router.on('before', ...)` guard below blocks any Inertia navigation
+// while `form.processing` is true, the same protection `ImportModal.vue`'s
+// `close()` gave against losing an upload underway.
 
 const ACCEPTED_LABEL = 'PDF, Word (.docx), Excel (.xlsx)';
 
@@ -21,10 +27,7 @@ const form = useForm({
 });
 
 const clientError = ref('');
-const dialogRef = ref(null);
 const fileInputRef = ref(null);
-const closeButtonRef = ref(null);
-let triggerElement = null;
 
 const { isDragging, validationError, onDragover, onDragleave, fileFromDropEvent, fileFromInputEvent } = useFileDropZone({
     acceptedExtensions: ['pdf', 'docx', 'xlsx'],
@@ -51,7 +54,7 @@ function handleFile(file) {
     form.post('/documents', {
         forceFormData: true,
         onError: () => {
-            // Server-side validation failed (e.g. size). Modal stays open,
+            // Server-side validation failed (e.g. size). Page stays as-is,
             // the error message renders from form.errors.file.
         },
     });
@@ -69,96 +72,23 @@ function openFilePicker() {
     fileInputRef.value?.click();
 }
 
-function close() {
+const removeNavigationGuard = router.on('before', () => {
     if (form.processing) {
-        // An upload is in flight: ignore the close request rather than
-        // letting the user believe they cancelled while the import still
-        // completes and redirects underneath them.
-        return;
+        return window.confirm(
+            "Un import est en cours. Si vous quittez cette page maintenant, l'import sera annulé. Voulez-vous vraiment quitter ?",
+        );
     }
+});
 
-    clientError.value = '';
-    form.reset();
-    form.clearErrors();
-    emit('close');
-}
-
-function onKeydown(event) {
-    if (event.key === 'Escape') {
-        event.preventDefault();
-        close();
-        return;
-    }
-
-    if (event.key === 'Tab') {
-        trapFocus(event);
-    }
-}
-
-function trapFocus(event) {
-    const focusable = dialogRef.value?.querySelectorAll(
-        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    );
-
-    if (!focusable || focusable.length === 0) {
-        return;
-    }
-
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-
-    if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-    }
-}
-
-watch(
-    () => props.open,
-    async (isOpen) => {
-        if (isOpen) {
-            triggerElement = document.activeElement;
-            await nextTick();
-            closeButtonRef.value?.focus();
-        } else if (triggerElement instanceof HTMLElement) {
-            triggerElement.focus();
-        }
-    },
-);
+onUnmounted(removeNavigationGuard);
 </script>
 
 <template>
-    <div
-        v-if="open"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-        @keydown="onKeydown"
-    >
-        <div
-            ref="dialogRef"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="import-modal-title"
-            class="w-full max-w-lg rounded-lg bg-surface p-6 shadow-xl"
-        >
-            <div class="mb-4 flex items-start justify-between">
-                <h2 id="import-modal-title" class="text-lg font-semibold text-foreground">
-                    Importer un document
-                </h2>
-                <button
-                    ref="closeButtonRef"
-                    type="button"
-                    class="rounded-sm p-1 text-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
-                    aria-label="Fermer la fenêtre d'import"
-                    :disabled="form.processing"
-                    :aria-disabled="form.processing"
-                    @click="close"
-                >
-                    ✕
-                </button>
-            </div>
+    <AppLayout>
+        <div class="mx-auto max-w-lg px-4 py-10">
+            <h1 class="mb-4 text-lg font-semibold text-foreground">
+                Importer un document
+            </h1>
 
             <div
                 class="flex flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed border-border bg-surface p-8 text-center"
@@ -203,5 +133,5 @@ watch(
                 {{ errorMessage }}
             </p>
         </div>
-    </div>
+    </AppLayout>
 </template>

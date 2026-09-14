@@ -214,13 +214,17 @@ class DocumentController extends Controller
 
     /**
      * ImportDocumentAction never touches `document_tag` (Boundaries &
-     * Constraints, spec-3-1) — an optional set of tags chosen in the Import
-     * modal is assigned afterwards, in a second step, through
+     * Constraints, spec-3-1) — an optional set of tags chosen on the import
+     * page is assigned afterwards, in a second step, through
      * SyncDocumentTagsAction, the sole write point for it.
      *
      * Both calls run inside one transaction: without it, a
      * SyncDocumentTagsAction failure after a successful import would leave
      * an orphaned Document row committed with no way to roll it back.
+     *
+     * Reached from the dedicated `/documents/import` page
+     * (spec-import-document-page) — this endpoint/action pair is unchanged
+     * by that migration away from the former `ImportModal.vue` popup.
      */
     public function store(ImportDocumentRequest $request, ImportDocumentAction $import, SyncDocumentTagsAction $syncTags): RedirectResponse
     {
@@ -238,6 +242,20 @@ class DocumentController extends Controller
         });
 
         return to_route('documents.show', $document);
+    }
+
+    /**
+     * Renders the dedicated import page (spec-import-document-page),
+     * replacing the former `ImportModal.vue` popup — registered at
+     * `/documents/import`, ahead of the `/documents/{document}` show route,
+     * so `import` is never captured by that route's model binding. Mirrors
+     * create() exactly: a bare Inertia::render() with no props, the page
+     * itself owning the dropzone/form logic and posting to the unchanged
+     * `POST /documents` (store()).
+     */
+    public function import(): Response
+    {
+        return Inertia::render('Documents/Import');
     }
 
     /**

@@ -236,7 +236,7 @@ function triggerExportWordToast() {
 
 // Deletion always requires explicit confirmation (UX-DR21, AD-15) — no
 // undo/SoftDeletes, so the dialog is the only guard against an accidental
-// destructive request. Accessibility mirrors ImportModal.vue: role="dialog",
+// destructive request. Standard modal accessibility pattern: role="dialog",
 // a focus trap, Escape to cancel, and focus restored to the trigger on close.
 const isDeleteDialogOpen = ref(false);
 const isDeleting = ref(false);

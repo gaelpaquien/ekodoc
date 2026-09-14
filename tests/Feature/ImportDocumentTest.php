@@ -134,10 +134,18 @@ it('renders the document detail page with title, type and date after import', fu
     );
 });
 
-it('serves the import modal from the library index page', function () {
+it('renders the library index page at GET /', function () {
     $response = $this->get('/');
 
     $response->assertInertia(fn ($page) => $page->component('Documents/Index'));
+});
+
+// --- Page d'import dédiée (spec-import-document-page) -----------------------
+
+it('renders the dedicated import page at GET /documents/import', function () {
+    $response = $this->get('/documents/import');
+
+    $response->assertInertia(fn ($page) => $page->component('Documents/Import'));
 });
 
 it('returns immediately with the document pending extraction, dispatching the job instead of running it inline', function () {

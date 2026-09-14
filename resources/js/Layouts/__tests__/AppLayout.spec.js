@@ -10,11 +10,9 @@ import Sidebar from '@/Components/Sidebar.vue';
 // real without a full Inertia app — same reusable mock shape as
 // Sidebar.spec.js/Index.spec.js. ExtractionTasksPanel is stubbed: its own
 // behaviour is out of scope here, only that AppLayout mounts Sidebar.
-// ImportModal is also stubbed: since spec-sidebar-document-actions moved it
-// into Sidebar.vue, it now mounts here too, and the real component calls
-// `useForm()` unconditionally at setup time, which this file's minimal
-// `@inertiajs/vue3` mock doesn't provide — same stub convention as
-// Index.spec.js used for it before the move.
+// No ImportModal stub needed any more (spec-import-document-page):
+// "Importer un document" is now a plain `Link` in Sidebar.vue, not a
+// component that calls `useForm()` at setup time.
 vi.mock('@inertiajs/vue3', () => ({
     Link: {
         name: 'Link',
@@ -29,7 +27,7 @@ describe('AppLayout', () => {
     it('mounts Sidebar', () => {
         const wrapper = mount(AppLayout, {
             global: {
-                stubs: { ExtractionTasksPanel: true, ImportModal: true },
+                stubs: { ExtractionTasksPanel: true },
             },
         });
 
@@ -40,7 +38,7 @@ describe('AppLayout', () => {
         const wrapper = mount(AppLayout, {
             slots: { default: '<p>Contenu de page</p>' },
             global: {
-                stubs: { ExtractionTasksPanel: true, ImportModal: true },
+                stubs: { ExtractionTasksPanel: true },
             },
         });
 
