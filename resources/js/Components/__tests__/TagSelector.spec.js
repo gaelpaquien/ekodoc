@@ -127,6 +127,172 @@ describe('TagSelector', () => {
         expect(wrapper.emitted('update:modelValue')).toEqual([[[2]]]);
     });
 
+    // spec-fix-multi-tag-selection: the suggestion list used to close after
+    // every selection, and refocusing the (already-focused) input never
+    // re-fires the `focus` event that reopens it — a second tag required
+    // Tab/Escape then a reclick. It must now stay open across selections.
+    it('keeps the suggestion list open across successive selections, letting a second tag be picked without refocusing', async () => {
+        const wrapper = mount(TagSelector, { props: { modelValue: [] } });
+
+        await wrapper.find('input').trigger('focus');
+        await settle();
+
+        await wrapper.find('li[role="option"]').trigger('mousedown');
+        await settle();
+
+        // Still open — no blur/Escape happened, and no external reclick was
+        // needed to see it again.
+        expect(wrapper.findAll('li[role="option"]').length).toBeGreaterThan(0);
+        expect(wrapper.find('input[role="combobox"]').attributes('aria-expanded')).toBe('true');
+
+        // Mirrors what every host page does on `update:modelValue` (a
+        // `v-model` binding) — the component itself holds no selection
+        // state of its own, so the test must feed the emitted value back in
+        // exactly like a real parent would before the second pick.
+        await wrapper.setProps({ modelValue: wrapper.emitted('update:modelValue')[0][0] });
+
+        await wrapper.find('li[role="option"]').trigger('mousedown');
+        await settle();
+
+        expect(wrapper.emitted('update:modelValue')).toEqual([[[1]], [[1, 2]]]);
+        expect(wrapper.find('input[role="combobox"]').attributes('aria-expanded')).toBe('true');
+    });
+
+    // spec-fix-multi-tag-selection, review_loop_iteration 1: mirrors the
+    // mouse-based "keeps the suggestion list open across successive
+    // selections" test above, but through the keyboard path (ArrowDown +
+    // Enter) — the list must stay open and a second Enter-selection must
+    // succeed without any refocus, exactly like the mouse path.
+    it('keeps the suggestion list open across successive keyboard selections via Enter, letting a second tag be picked without refocusing', async () => {
+        const wrapper = mount(TagSelector, { props: { modelValue: [] } });
+
+        await wrapper.find('input').trigger('focus');
+        await settle();
+
+        // Suggestions ordered Contrats(1), Factures(2), Comptes rendus(3);
+        // focus already highlights index 0 (Contrats) — one ArrowDown moves
+        // the highlight to Factures(2) before Enter selects it.
+        await wrapper.find('input').trigger('keydown', { key: 'ArrowDown' });
+        await wrapper.find('input').trigger('keydown', { key: 'Enter' });
+        await settle();
+
+        expect(wrapper.find('input[role="combobox"]').attributes('aria-expanded')).toBe('true');
+        expect(wrapper.emitted('update:modelValue')).toEqual([[[2]]]);
+
+        await wrapper.setProps({ modelValue: wrapper.emitted('update:modelValue')[0][0] });
+
+        // Remaining suggestions: Contrats(1), Comptes rendus(3) — highlight
+        // reset to index 0 (Contrats); one ArrowDown moves it to Comptes
+        // rendus(3) before this second Enter selects it, with no refocus in
+        // between.
+        await wrapper.find('input').trigger('keydown', { key: 'ArrowDown' });
+        await wrapper.find('input').trigger('keydown', { key: 'Enter' });
+        await settle();
+
+        expect(wrapper.emitted('update:modelValue')).toEqual([[[2]], [[2, 3]]]);
+        expect(wrapper.find('input[role="combobox"]').attributes('aria-expanded')).toBe('true');
+    });
+
+    // spec-fix-multi-tag-selection, review_loop_iteration 1 (amendment):
+    // Show.vue disables TagSelector synchronously (`:disabled="isSavingTags"`)
+    // right after a selection, while the list is still open, for its
+    // immediate-write PATCH. A native `disabled` input is always
+    // browser-force-blurred, which used to close the list despite the fix
+    // above — `readonly`+guards must keep it open (inertly) instead.
+    it('keeps the suggestion list open (inertly) when disabled turns true right after a selection, then becomes fully interactive again without refocusing once disabled turns back false', async () => {
+        const wrapper = mount(TagSelector, { props: { modelValue: [], disabled: false } });
+
+        await wrapper.find('input').trigger('focus');
+        await settle();
+
+        await wrapper.find('li[role="option"]').trigger('mousedown');
+        await settle();
+        await wrapper.setProps({ modelValue: wrapper.emitted('update:modelValue')[0][0] });
+
+        // Simulates Show.vue's synchronous `isSavingTags` flip right after
+        // the selection above, while the list is already open.
+        await wrapper.setProps({ disabled: true });
+        await settle();
+
+        // Still open, but now inert: readonly (never force-blurred, unlike
+        // native `disabled`), and no further interaction succeeds.
+        expect(wrapper.find('input[role="combobox"]').attributes('aria-expanded')).toBe('true');
+        expect(wrapper.find('input').attributes('readonly')).toBeDefined();
+        expect(wrapper.find('input').attributes('aria-disabled')).toBe('true');
+
+        await wrapper.find('li[role="option"]').trigger('mousedown');
+        await wrapper.find('input').trigger('keydown', { key: 'ArrowDown' });
+        await wrapper.find('input').trigger('keydown', { key: 'Enter' });
+        await settle();
+
+        // No further emission happened while disabled.
+        expect(wrapper.emitted('update:modelValue')).toEqual([[[1]]]);
+
+        // Back to interactive, immediately, with no reclick/refocus.
+        await wrapper.setProps({ disabled: false });
+        await settle();
+
+        expect(wrapper.find('input').attributes('readonly')).toBeUndefined();
+        await wrapper.find('li[role="option"]').trigger('mousedown');
+        await settle();
+
+        expect(wrapper.emitted('update:modelValue')).toEqual([[[1]], [[1, 2]]]);
+    });
+
+    // review_loop_iteration 1 (second pass): removeTag() had no `disabled`
+    // guard, unlike selectTag()/onKeydown() — a chip's remove button stays
+    // native `disabled` (Code Map), but the handler itself must also refuse
+    // to emit while disabled, as a defense-in-depth match for the others.
+    it('does not remove a tag when its chip remove button is clicked while disabled', async () => {
+        const wrapper = mount(TagSelector, { props: { modelValue: [1], disabled: true } });
+
+        await wrapper.find('button[aria-label="Retirer le tag Contrats"]').trigger('click');
+        await settle();
+
+        expect(wrapper.emitted('update:modelValue')).toBeUndefined();
+    });
+
+    it('shows the no-match message and stays open after picking the last available tag', async () => {
+        // Only one tag (id 3) is left unselected — picking it should not
+        // auto-close the list; the empty-suggestions message renders in
+        // its place instead, matching the "already selected" behaviour of
+        // every other suggestion.
+        const wrapper = mount(TagSelector, { props: { modelValue: [1, 2] } });
+
+        await wrapper.find('input').trigger('focus');
+        await settle();
+
+        expect(wrapper.findAll('li[role="option"]')).toHaveLength(1);
+
+        await wrapper.find('li[role="option"]').trigger('mousedown');
+        await settle();
+        await wrapper.setProps({ modelValue: wrapper.emitted('update:modelValue')[0][0] });
+        await settle();
+
+        expect(wrapper.find('input[role="combobox"]').attributes('aria-expanded')).toBe('true');
+        expect(wrapper.findAll('li[role="option"]')).toHaveLength(0);
+        expect(wrapper.find('li[role="presentation"]').text()).toBe('Aucun tag ne correspond.');
+    });
+
+    it('still closes on Escape, resetting the query, after one or more selections were made', async () => {
+        const wrapper = mount(TagSelector, { props: { modelValue: [] } });
+
+        await wrapper.find('input').trigger('focus');
+        await settle();
+        await wrapper.find('li[role="option"]').trigger('mousedown');
+        await settle();
+        await wrapper.setProps({ modelValue: wrapper.emitted('update:modelValue')[0][0] });
+        await wrapper.find('input').setValue('fact');
+        await settle();
+
+        await wrapper.find('input').trigger('keydown', { key: 'Escape' });
+        await settle();
+
+        expect(wrapper.findAll('li[role="option"]')).toHaveLength(0);
+        expect(wrapper.find('input[role="combobox"]').attributes('aria-expanded')).toBe('false');
+        expect(wrapper.find('input').element.value).toBe('');
+    });
+
     it('closes the suggestion list on Escape without emitting a change', async () => {
         const wrapper = mount(TagSelector, { props: { modelValue: [] } });
 

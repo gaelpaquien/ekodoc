@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { router } from '@inertiajs/vue3';
 import Editor from '@/Pages/Documents/Editor.vue';
 import AttachmentsPanel from '@/Components/AttachmentsPanel.vue';
+import TagSelector from '@/Components/TagSelector.vue';
 
 // `@tiptap/vue-3` is mocked out entirely — mounting a real TipTap/ProseMirror
 // instance in jsdom is unnecessary for this story (only the toolbar's
@@ -14,10 +15,14 @@ import AttachmentsPanel from '@/Components/AttachmentsPanel.vue';
 // `chain()` always returns the same fluent object so
 // `chain().focus().insertTable(...).run()` / `chain().focus().deleteTable().run()`
 // keep working however many links are chained.
-const { isActiveMock, chainMock, insertTableMock, deleteTableMock, runMock } = vi.hoisted(() => {
+const {
+    isActiveMock, chainMock, insertTableMock, deleteTableMock, runMock, formPostMock, formPatchMock,
+} = vi.hoisted(() => {
     const insertTableMock = vi.fn();
     const deleteTableMock = vi.fn();
     const runMock = vi.fn();
+    const formPostMock = vi.fn();
+    const formPatchMock = vi.fn();
 
     const chainObj = {
         focus: () => chainObj,
@@ -46,6 +51,8 @@ const { isActiveMock, chainMock, insertTableMock, deleteTableMock, runMock } = v
         insertTableMock,
         deleteTableMock,
         runMock,
+        formPostMock,
+        formPatchMock,
     };
 });
 
@@ -94,8 +101,8 @@ vi.mock('@inertiajs/vue3', async () => {
             ...initial,
             processing: false,
             errors: {},
-            post: vi.fn(),
-            patch: vi.fn(),
+            post: formPostMock,
+            patch: formPatchMock,
         }),
         Link: { name: 'Link', props: ['href'], template: '<a :href="href"><slot /></a>' },
     };
@@ -251,5 +258,33 @@ describe('Documents/Editor — garde de navigation vs AttachmentsPanel (retro Ep
         beforeGuard({ preventDefault: vi.fn() });
 
         expect(window.confirm).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('Documents/Editor — champ Tags visible sans révélation en deux temps (spec-fix-multi-tag-selection)', () => {
+    beforeEach(() => {
+        formPostMock.mockClear();
+        formPatchMock.mockClear();
+    });
+
+    it('renders the Tags field immediately on a brand-new document, with no prior click on "Enregistrer"', () => {
+        const wrapper = mountEditor();
+
+        expect(wrapper.findComponent(TagSelector).exists()).toBe(true);
+    });
+
+    // review_loop_iteration 1, finding verification-gap: the two-step
+    // "Enregistrer" gesture (reveal the tag selector on the first click,
+    // submit only on the second) is gone — a brand-new document (no
+    // `document` prop) must submit directly on the very first click.
+    it('submits directly to /documents/create on the first click on "Enregistrer" for a brand-new document', async () => {
+        const wrapper = mountEditor();
+
+        const saveButton = wrapper.findAll('button').find((button) => button.text().includes('Enregistrer'));
+        await saveButton.trigger('click');
+
+        expect(formPostMock).toHaveBeenCalledTimes(1);
+        expect(formPostMock.mock.calls[0][0]).toBe('/documents/create');
+        expect(formPatchMock).not.toHaveBeenCalled();
     });
 });

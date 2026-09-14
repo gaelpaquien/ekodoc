@@ -301,3 +301,11 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-import-document-page.md`
   summary: Sur `Documents/Import.vue`, seul le bouton "Parcourir" est désactivé pendant `form.processing` — la zone de glisser-déposer et `TagSelector` restent interactifs, permettant de déposer un second fichier ou de modifier les tags pendant un import en cours.
   evidence: Edge Case Hunter (step-04 review) — défaut préexistant dans `ImportModal.vue` depuis spec-1-1, reproduit à l'identique par la migration verbatim vers la page ; correctif trivial si une session future retouche ce fichier (garde `if (form.processing) return;` en tête de `handleFile()`, `:disabled` sur la zone de drop/`TagSelector`).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-fix-multi-tag-selection.md`
+  summary: `TagSelector.vue` réinitialise systématiquement `query` à chaque sélection — filtrer sur un terme (ex. "com" pour plusieurs tags "Comptes…") oblige à retaper le filtre avant chaque sélection suivante au lieu de rester actif entre deux choix.
+  evidence: Blind Hunter (step-04 review) — contradiction partielle avec l'objectif "enchaîner plusieurs sélections rapidement" de cette story, mais non couvert par la matrice I/O approuvée (qui ne teste que la sélection sans filtre actif) ; amélioration UX à envisager si des utilisateurs filtrent réellement sur des tags au nommage proche.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-fix-multi-tag-selection.md`
+  summary: L'état inerte de `TagSelector.vue` pendant `disabled` (readonly + `aria-disabled="true"`) n'annonce rien explicitement aux lecteurs d'écran (pas d'`aria-live`) qu'une sélection vient d'être prise en compte — l'ancien signal implicite (fermeture de la liste) a disparu sans équivalent non-visuel, et `aria-readonly` pourrait mieux refléter l'état DOM réel qu'`aria-disabled` seul.
+  evidence: Blind Hunter + Edge Case Hunter (step-04 review, convergents) — raffinement d'accessibilité au-delà des Acceptance Criteria approuvés (navigation clavier/focus visible, pas de confirmation non-visuelle explicite) ; à traiter si un usage avec lecteur d'écran remonte une confusion réelle.

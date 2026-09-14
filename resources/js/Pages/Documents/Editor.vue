@@ -81,14 +81,6 @@ watch(
 const isAttachmentUploading = ref(false);
 
 const titleInputRef = ref(null);
-const tagSelectorRef = ref(null);
-
-// Whether the tag selector has been revealed yet. On a brand-new document
-// it starts hidden (UX-DR10, Design Notes spec-2-1) behind a two-step
-// "Enregistrer" gesture; in edit mode there is no such gesture to reserve —
-// the tags the document already has are shown immediately (Code Map,
-// spec-2-3/spec-3-1). Once shown, stays shown for the rest of the session.
-const showTagSelector = ref(!!props.document);
 
 // Tracks the editor's current HTML outside of TipTap itself so it can be
 // compared reactively against the snapshot below — TipTap's own state
@@ -473,25 +465,17 @@ watch(
     },
 );
 
-// Save is a two-step gesture the first time a document is created (UX-DR10,
-// Design Notes spec-2-1): the tag selector is optional and only surfaces
-// once the user signals intent to save, rather than being shown upfront on
-// an empty editor — matching the I/O matrix, no request is sent on this
-// first click. Every click after that submits, even if no tag was ever
-// picked (tag_ids stays []): a tag is never blocking.
-async function onSaveClick() {
+// Save always submits directly, including the very first click on a
+// brand-new document (spec-fix-multi-tag-selection removed the two-step
+// "Enregistrer" gesture that used to reveal the tag selector on that first
+// click instead of submitting) — a tag is never required, tag_ids simply
+// stays [] when none was picked.
+function onSaveClick() {
     // A draft attachment upload still running would otherwise be silently
     // excluded from `draft_attachments` (code review finding) — the Save
     // button is also disabled while this is true (see template), this is
     // the belt-and-braces guard against a click that still slips through.
     if (isAttachmentUploading.value) {
-        return;
-    }
-
-    if (!showTagSelector.value) {
-        showTagSelector.value = true;
-        await nextTick();
-        tagSelectorRef.value?.focus();
         return;
     }
 
@@ -668,8 +652,8 @@ function submit() {
                 </p>
             </div>
 
-            <div v-if="showTagSelector" class="mt-6 max-w-xs">
-                <TagSelector ref="tagSelectorRef" v-model="form.tag_ids" :disabled="form.processing" />
+            <div class="mt-6 max-w-xs">
+                <TagSelector v-model="form.tag_ids" :disabled="form.processing" />
                 <p v-if="form.errors.tag_ids" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
                     {{ form.errors.tag_ids }}
                 </p>

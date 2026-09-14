@@ -77,18 +77,35 @@ function closeSuggestions() {
 }
 
 function selectTag(tag) {
+    if (props.disabled) {
+        return;
+    }
+
     emit('update:modelValue', [...props.modelValue, tag.id]);
+    // The list stays open (spec-fix-multi-tag-selection) so a second, third…
+    // tag can be picked right away without an intervening blur/Escape +
+    // reclick — `filteredTags` already drops the tag just picked (it reads
+    // `props.modelValue`, not a stale copy), so resetting `query` re-reveals
+    // the rest of the list rather than whatever partial term was last typed.
     query.value = '';
-    closeSuggestions();
+    highlightedIndex.value = filteredTags.value.length > 0 ? 0 : -1;
     inputRef.value?.focus();
 }
 
 function removeTag(tagId) {
+    if (props.disabled) {
+        return;
+    }
+
     emit('update:modelValue', props.modelValue.filter((id) => id !== tagId));
     inputRef.value?.focus();
 }
 
 function onKeydown(event) {
+    if (props.disabled) {
+        return;
+    }
+
     if (event.key === 'ArrowDown') {
         event.preventDefault();
 
@@ -131,14 +148,6 @@ function onKeydown(event) {
         closeSuggestions();
     }
 }
-
-// Lets a host page (Editor.vue's two-step "Enregistrer" reveal, Design
-// Notes spec-2-1) move focus onto this control right after it's revealed,
-// without depending on a DOM id that could collide if more than one
-// instance were ever mounted on the same page at once.
-defineExpose({
-    focus: () => inputRef.value?.focus(),
-});
 </script>
 
 <template>
@@ -180,8 +189,11 @@ defineExpose({
                     ? `${instanceId}-option-${filteredTags[highlightedIndex].id}`
                     : undefined"
                 placeholder="Rechercher un tag…"
-                class="w-full rounded-sm border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
-                :disabled="disabled"
+                class="w-full rounded-sm border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                :class="disabled ? 'cursor-not-allowed opacity-50' : ''"
+                :readonly="disabled"
+                :aria-disabled="disabled"
+                :tabindex="disabled ? -1 : 0"
                 @focus="openSuggestions"
                 @blur="closeSuggestions"
                 @keydown="onKeydown"
@@ -209,7 +221,7 @@ defineExpose({
                     class="cursor-pointer px-3 py-2 text-sm text-foreground"
                     :class="{ 'bg-border': index === highlightedIndex }"
                     @mousedown.prevent="selectTag(tag)"
-                    @mouseenter="highlightedIndex = index"
+                    @mouseenter="!disabled && (highlightedIndex = index)"
                 >
                     {{ tag.name }}
                 </li>
