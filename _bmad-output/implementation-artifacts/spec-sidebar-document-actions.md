@@ -131,5 +131,11 @@ Commit `b8c1ea2` (retouches demandées hors epic, voir `spec-sidebar-menu-adjust
 
 Commit `a183c58` (correction sur retour humain du commit `b8c1ea2` ci-dessus) :
 
-- **Cœur du footer** : le tracé SVG n'était pas centré (croix décalée par rapport au cœur) et sa couleur héritait du gris `text-muted` du paragraphe. Remplacé par un tracé symétrique (centré en x=12) et une couleur fixe `text-red-600 dark:text-red-400`, pour un cœur rouge correctement barré au centre.
+- **Cœur du footer** : le tracé SVG n'était pas centré (croix décalée par rapport au cœur) et sa couleur héritait du gris `text-muted` du paragraphe. Remplacé par un tracé symétrique (centré en x=12) et une couleur fixe `text-red-600 dark:text-red-400` appliquée à tout le SVG (cœur + croix).
 - **Second séparateur** : un `<hr>` a été ajouté entre la liste des boutons et le footer "Made with ... Claude", symétrique à celui déjà présent sous "EkoDoc - Démo".
+
+Commit `2d8fc19` (2ᵉ correction sur retour humain du commit `a183c58` ci-dessus) :
+
+- **Couleur de la croix** : `text-red-600 dark:text-red-400` déplacé du `<svg>` racine vers le seul `<path>` du cœur (avec `stroke="currentColor"` explicite sur chaque élément) — les 2 `<line>` de la croix héritent désormais de `text-muted` (couleur du thème) au lieu du rouge du cœur.
+- **Libellé du toggle thème** : décrivait l'état courant (`isDark ? 'Thème sombre' : 'Thème clair'`) au lieu de l'action cible, à l'inverse de son propre `aria-label` déjà correct — inversé pour décrire la cible du clic, cohérent avec l'aria-label.
+- **Alignement icône/texte** : `leading-none` ajouté sur les 5 liens de nav et le bouton toggle pour réduire l'écart entre la hauteur de ligne du texte (20px) et celle de l'icône (16px) — mesure précise (Puppeteer) confirmant un alignement déjà correct au sous-pixel en rendu Chromium 1x, ce changement resserre la marge d'erreur pour les environnements à mise à l'échelle non entière (DPI Windows).
