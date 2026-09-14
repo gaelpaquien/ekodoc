@@ -122,3 +122,9 @@ Commit `5fb2832` (après `30a97a3`) a apporté, sur retours humains successifs :
 - **Hors scope initial** : les liens "&larr; Retour à la bibliothèque" de `Editor.vue`/`Show.vue` ont été retirés (navigation désormais exclusive à la sidebar) — changement demandé dans la même conversation mais non couvert par l'Intent d'origine de ce spec.
 
 Tests : `resources/js/Components/__tests__/Sidebar.spec.js` mis à jour en conséquence à chaque étape (95/95 tests passent sur l'ensemble de la suite au commit `5fb2832`).
+
+Commit `b8c1ea2` (retouches demandées hors epic, voir `spec-sidebar-menu-adjustments.md`) :
+
+- **Toggle thème** : sorti de `<nav aria-label="Navigation principale">` (ce n'est pas une destination de navigation) mais reste visuellement dans la même liste, juste après "Configuration", via un conteneur `flex flex-col gap-0.5` partagé et `<nav class="contents">`.
+- **Séparateur** : un `<hr>` a été ajouté entre le bloc "EkoDoc - Démo" et la liste des boutons.
+- **Footer** : l'emoji "💔" a été remplacé par une icône SVG cœur barrée de deux traits en croix (rendu "annulé", pas "brisé").
