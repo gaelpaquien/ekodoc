@@ -72,8 +72,8 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
     <aside
         class="sticky top-0 flex h-screen w-sidebar-width shrink-0 flex-col overflow-y-auto border-r border-border bg-surface-alt px-4 py-5 text-foreground"
     >
-        <span class="mb-5 block px-2 text-sm font-semibold tracking-tight">
-            EkoDoc
+        <span class="mb-5 block px-2 text-center text-sm font-semibold tracking-tight">
+            EkoDoc - Démo
         </span>
 
         <nav class="flex flex-col gap-0.5" aria-label="Navigation principale">
@@ -160,7 +160,7 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
 
         <button
             type="button"
-            class="flex items-center gap-2 rounded-md px-3 py-2 text-xs text-muted transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+            class="flex items-center justify-center gap-2 rounded-md px-3 py-2 text-xs text-muted transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
             :aria-label="isDark ? 'Passer en mode clair' : 'Passer en mode sombre'"
             @click="toggleTheme"
         >
@@ -174,7 +174,7 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
             {{ isDark ? 'Thème sombre' : 'Thème clair' }}
         </button>
 
-        <p class="px-3 pt-1 text-sm text-muted">
+        <p class="px-3 pt-1 text-center text-sm text-muted">
             Made with 💔 Claude
         </p>
     </aside>
