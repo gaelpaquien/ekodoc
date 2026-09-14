@@ -62,15 +62,20 @@ describe('Sidebar', () => {
 
     // The footer's broken-heart emoji ("💔") was replaced with an inline
     // heart SVG crossed out by two diagonal lines (a "cancelled" heart, not
-    // a cracked one), on human request.
-    it('renders the footer heart as a red, crossed-out SVG icon, not the broken-heart emoji', () => {
+    // a cracked one), on human request. The heart itself stays red, but the
+    // two cross-out lines follow the surrounding theme color instead — a
+    // human correction after the first pass made the whole icon red.
+    it('renders the footer heart as a crossed-out SVG icon, not the broken-heart emoji — heart red, cross-out lines theme-colored', () => {
         const wrapper = mount(Sidebar);
         const footer = wrapper.findAll('p').find((p) => p.text().includes('Claude'));
         const heart = footer.find('svg');
+        const lines = heart.findAll('line');
 
         expect(heart.exists()).toBe(true);
-        expect(heart.findAll('line')).toHaveLength(2);
-        expect(heart.classes()).toContain('text-red-600');
+        expect(lines).toHaveLength(2);
+        expect(heart.find('path').classes()).toContain('text-red-600');
+        expect(heart.classes()).not.toContain('text-red-600');
+        lines.forEach((line) => expect(line.classes()).not.toContain('text-red-600'));
     });
 
     // AC1: "Créer un document" and "Importer un document" render as part of
@@ -272,18 +277,18 @@ describe('Sidebar', () => {
         const toggle = wrapper.find('[aria-label="Passer en mode sombre"]');
 
         expect(document.documentElement.classList.contains('dark')).toBe(false);
-        expect(toggle.text()).toBe('Thème clair');
+        expect(toggle.text()).toBe('Thème sombre');
 
         await toggle.trigger('click');
 
         expect(document.documentElement.classList.contains('dark')).toBe(true);
         expect(localStorage.getItem('ekodoc-theme')).toBe('dark');
-        expect(toggle.text()).toBe('Thème sombre');
+        expect(toggle.text()).toBe('Thème clair');
 
         await toggle.trigger('click');
 
         expect(document.documentElement.classList.contains('dark')).toBe(false);
         expect(localStorage.getItem('ekodoc-theme')).toBe('light');
-        expect(toggle.text()).toBe('Thème clair');
+        expect(toggle.text()).toBe('Thème sombre');
     });
 });

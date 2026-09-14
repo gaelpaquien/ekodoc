@@ -82,7 +82,7 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
         <nav class="contents" aria-label="Navigation principale">
             <Link
                 href="/"
-                class="flex items-center gap-2 rounded-md px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                class="flex items-center gap-2 rounded-md px-3 py-2 text-sm leading-none transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                 :class="isLibraryActive
                     ? 'bg-primary font-semibold text-primary-foreground'
                     : 'text-foreground hover:bg-surface'"
@@ -96,7 +96,7 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
             </Link>
             <Link
                 href="/documents/create"
-                class="flex items-center gap-2 rounded-md px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                class="flex items-center gap-2 rounded-md px-3 py-2 text-sm leading-none transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                 :class="isCreateActive
                     ? 'bg-primary font-semibold text-primary-foreground'
                     : 'text-foreground hover:bg-surface'"
@@ -112,7 +112,7 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
             </Link>
             <Link
                 href="/documents/import"
-                class="flex items-center gap-2 rounded-md px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                class="flex items-center gap-2 rounded-md px-3 py-2 text-sm leading-none transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                 :class="isImportActive
                     ? 'bg-primary font-semibold text-primary-foreground'
                     : 'text-foreground hover:bg-surface'"
@@ -127,7 +127,7 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
             </Link>
             <Link
                 href="/recherche"
-                class="flex items-center gap-2 rounded-md px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                class="flex items-center gap-2 rounded-md px-3 py-2 text-sm leading-none transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                 :class="isSearchActive
                     ? 'bg-primary font-semibold text-primary-foreground'
                     : 'text-foreground hover:bg-surface'"
@@ -141,7 +141,7 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
             </Link>
             <Link
                 href="/configuration"
-                class="flex items-center gap-2 rounded-md px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                class="flex items-center gap-2 rounded-md px-3 py-2 text-sm leading-none transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                 :class="isConfigActive
                     ? 'bg-primary font-semibold text-primary-foreground'
                     : 'text-foreground hover:bg-surface'"
@@ -167,7 +167,7 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
         de ce conteneur, avec le même espacement (`gap-0.5`) que ce bouton. -->
         <button
             type="button"
-            class="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+            class="flex items-center gap-2 rounded-md px-3 py-2 text-sm leading-none text-foreground transition hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
             :aria-label="isDark ? 'Passer en mode clair' : 'Passer en mode sombre'"
             @click="toggleTheme"
         >
@@ -178,7 +178,7 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
             <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" />
             </svg>
-            {{ isDark ? 'Thème sombre' : 'Thème clair' }}
+            {{ isDark ? 'Thème clair' : 'Thème sombre' }}
         </button>
         </div>
 
@@ -188,10 +188,10 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
 
         <p class="flex items-center justify-center gap-1 px-3 pt-1 text-center text-sm text-muted">
             Made with
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" aria-hidden="true">
-                <path d="M12 20.3C12 20.3 4.5 15.1 2.7 10.5 1.3 7 3 3.5 6.5 3.5c2.2 0 4.3 1.3 5.5 3.5 1.2-2.2 3.3-3.5 5.5-3.5 3.5 0 5.2 3.5 3.8 7-1.8 4.6-9.3 9.8-9.3 9.8Z" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-                <line x1="18" y1="6" x2="6" y2="18" />
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
+                <path class="text-red-600 dark:text-red-400" stroke="currentColor" d="M12 20.3C12 20.3 4.5 15.1 2.7 10.5 1.3 7 3 3.5 6.5 3.5c2.2 0 4.3 1.3 5.5 3.5 1.2-2.2 3.3-3.5 5.5-3.5 3.5 0 5.2 3.5 3.8 7-1.8 4.6-9.3 9.8-9.3 9.8Z" />
+                <line stroke="currentColor" x1="6" y1="6" x2="18" y2="18" />
+                <line stroke="currentColor" x1="18" y1="6" x2="6" y2="18" />
             </svg>
             Claude
         </p>
