@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
+import { router } from '@inertiajs/vue3';
 import Index from '@/Pages/Documents/Index.vue';
 
 // `@inertiajs/vue3` is mocked rather than imported for real (same reusable
@@ -138,5 +139,20 @@ describe('Documents/Index', () => {
         // anchor.
         expect(nav.findAll('a').length).toBe(3);
         expect(nav.text()).toContain('Précédent');
+    });
+
+    // Retro Epic 3, item 9: a filter-triggered partial reload must also
+    // refresh the shared `tags` prop, or a tag renamed/deleted elsewhere
+    // (e.g. via Configuration) stays stale in the filter's own TagSelector.
+    it('includes tags in the partial reload when a filter changes', async () => {
+        const wrapper = mount(Index, {
+            props: { documents: { data: [], links: [] }, tagFilters: [], typeFilters: [] },
+            global: { stubs: globalStubs },
+        });
+
+        await wrapper.find('input[type="checkbox"]').setValue(true);
+
+        expect(router.get).toHaveBeenCalledTimes(1);
+        expect(router.get.mock.calls[0][2].only).toContain('tags');
     });
 });

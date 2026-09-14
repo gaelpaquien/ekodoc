@@ -33,6 +33,13 @@ const isOpen = ref(false);
 const highlightedIndex = ref(-1);
 const inputRef = ref(null);
 
+// Unique per mounted instance (pattern already in place for
+// AttachmentsPanel.vue's own `panelId`) — TagSelector is mounted more than
+// once on the same page at a time (e.g. the Library filter behind an open
+// Import modal), and the ids below must never collide between instances
+// (retrospective Epic 3, action item 6).
+const instanceId = `tag-selector-${Math.random().toString(36).slice(2)}`;
+
 const selectedTags = computed(() => props.modelValue
     .map((id) => allTags.value.find((tag) => tag.id === id))
     .filter(Boolean));
@@ -136,7 +143,7 @@ defineExpose({
 
 <template>
     <div class="w-full">
-        <label for="tag-selector-input" class="mb-1 block text-sm font-medium text-foreground">
+        <label :for="`${instanceId}-input`" class="mb-1 block text-sm font-medium text-foreground">
             Tags
         </label>
 
@@ -161,16 +168,16 @@ defineExpose({
 
         <div class="relative">
             <input
-                id="tag-selector-input"
+                :id="`${instanceId}-input`"
                 ref="inputRef"
                 v-model="query"
                 type="text"
                 role="combobox"
                 aria-autocomplete="list"
                 :aria-expanded="isOpen"
-                :aria-controls="isOpen ? 'tag-selector-listbox' : undefined"
+                :aria-controls="isOpen ? `${instanceId}-listbox` : undefined"
                 :aria-activedescendant="isOpen && highlightedIndex >= 0 && filteredTags[highlightedIndex]
-                    ? `tag-selector-option-${filteredTags[highlightedIndex].id}`
+                    ? `${instanceId}-option-${filteredTags[highlightedIndex].id}`
                     : undefined"
                 placeholder="Rechercher un tag…"
                 class="w-full rounded-sm border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
@@ -182,7 +189,7 @@ defineExpose({
 
             <ul
                 v-if="isOpen"
-                id="tag-selector-listbox"
+                :id="`${instanceId}-listbox`"
                 role="listbox"
                 class="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-sm border border-border bg-surface py-1 shadow-lg"
             >
@@ -195,7 +202,7 @@ defineExpose({
                 </li>
                 <li
                     v-for="(tag, index) in filteredTags"
-                    :id="`tag-selector-option-${tag.id}`"
+                    :id="`${instanceId}-option-${tag.id}`"
                     :key="tag.id"
                     role="option"
                     :aria-selected="index === highlightedIndex"

@@ -24,6 +24,42 @@ it('lists every existing tag with its document count, ordered by name', function
     );
 });
 
+it('orders tags case-insensitively rather than by raw byte/ASCII value (retro Epic 3, item 10)', function () {
+    // Naive `orderBy('name')` would put 'Banane' (ASCII 'B' = 0x42) before
+    // 'abricot' ('a' = 0x61) — the fix sorts by `Str::lower()` instead, so
+    // the expected order is the intuitive case-insensitive one.
+    Tag::factory()->create(['name' => 'Banane']);
+    Tag::factory()->create(['name' => 'abricot']);
+    Tag::factory()->create(['name' => 'cerise']);
+
+    $response = test()->get('/configuration');
+
+    $response->assertInertia(fn ($page) => $page
+        ->component('Documents/Configuration')
+        ->where('tags.0.name', 'abricot')
+        ->where('tags.1.name', 'Banane')
+        ->where('tags.2.name', 'cerise')
+    );
+});
+
+it('sorts an accented, mixed-case name with Str::lower() rather than SQLite\'s ASCII-only LOWER()', function () {
+    // The scenario named directly by the retrospective and by this fix's
+    // own code comments: SQLite's built-in `LOWER()` only folds ASCII, so
+    // 'École' wouldn't fold to the same key as 'école' there — Str::lower()
+    // (mb_strtolower) does. Deterministic tie-break: `orderBy('id')` keeps
+    // 'école' (inserted first) ahead of 'École' (inserted second).
+    Tag::factory()->create(['name' => 'école']);
+    Tag::factory()->create(['name' => 'École']);
+
+    $response = test()->get('/configuration');
+
+    $response->assertInertia(fn ($page) => $page
+        ->component('Documents/Configuration')
+        ->where('tags.0.name', 'école')
+        ->where('tags.1.name', 'École')
+    );
+});
+
 it('shows the neutral empty state when no tag exists', function () {
     $response = test()->get('/configuration');
 

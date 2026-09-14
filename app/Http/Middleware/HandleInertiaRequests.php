@@ -7,6 +7,7 @@ use App\Models\Document;
 use App\Models\Tag;
 use App\Support\DocumentMimeTypes;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -51,11 +52,20 @@ class HandleInertiaRequests extends Middleware
             // editor, Document Detail, Library filter) — the full list of
             // already-existing tags it's allowed to offer (Boundaries &
             // Constraints, spec-3-1: no free-text creation there). Tag
-            // management itself is out of scope for this story (story 3.5);
-            // rows come from TagFactory/tinker in the meantime.
+            // management itself is story 3.5 (TagController).
+            //
+            // Sorted in PHP via `Str::lower()` rather than `orderBy('name')`
+            // (retrospective Epic 3, action item 10) — same rationale as the
+            // duplicate check in CreateTagRequest: SQLite's `LOWER()` only
+            // folds ASCII. Must stay in lockstep with TagController::index()'s
+            // own sort — same mechanism in both, no divergence, including the
+            // `orderBy('id')`/`SORT_STRING` determinism fix (see that
+            // method's comment for the full rationale).
             'tags' => fn () => Tag::query()
-                ->orderBy('name')
-                ->get(['id', 'name']),
+                ->orderBy('id')
+                ->get(['id', 'name'])
+                ->sortBy(fn (Tag $tag) => Str::lower($tag->name), SORT_STRING)
+                ->values(),
             // Powers Index.vue's type filter (`TYPE_OPTIONS`, pdf/word/excel
             // entries only) — same pattern as `tags` above. Derived
             // from DocumentMimeTypes::TYPE_TO_MIME/TYPE_LABELS, the single

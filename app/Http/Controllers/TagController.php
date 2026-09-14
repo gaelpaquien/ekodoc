@@ -12,6 +12,7 @@ use App\Http\Requests\CreateTagRequest;
 use App\Http\Requests\RenameTagRequest;
 use App\Models\Tag;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -27,8 +28,26 @@ class TagController extends Controller
      */
     public function index(): Response
     {
+        // Sorted in PHP via `Str::lower()` rather than `orderBy('name')`
+        // (retrospective Epic 3, action item 10) — same rationale as the
+        // duplicate check in CreateTagRequest: SQLite's `LOWER()` only folds
+        // ASCII, so an accented name (e.g. "École") would sort differently
+        // there than on a driver with full Unicode collation. Must stay in
+        // lockstep with the shared `tags` prop's own sort
+        // (HandleInertiaRequests::share()) — same mechanism in both.
+        // `orderBy('id')` gives a deterministic base order before the PHP
+        // sort (SQL makes no ordering guarantee without an ORDER BY), so two
+        // tags whose names differ only by case get a stable, reproducible
+        // tie-break instead of depending on incidental storage-engine order.
+        // `SORT_STRING` keeps the comparison lexicographic even for a
+        // purely-numeric tag name (SORT_REGULAR would compare "9"/"10"
+        // arithmetically instead of as strings).
+        $tags = Tag::withCount('documents')->orderBy('id')->get()
+            ->sortBy(fn (Tag $tag) => Str::lower($tag->name), SORT_STRING)
+            ->values();
+
         return Inertia::render('Documents/Configuration', [
-            'tags' => Tag::withCount('documents')->orderBy('name')->get(),
+            'tags' => $tags,
         ]);
     }
 

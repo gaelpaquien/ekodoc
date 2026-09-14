@@ -210,7 +210,11 @@ onMounted(() => {
 // save and image-upload requests below are this component's own doing, not
 // the user trying to leave, so `programmaticNavigation` lets them bypass
 // the confirmation entirely rather than asking the user to confirm leaving
-// a page they never asked to leave.
+// a page they never asked to leave. AttachmentsPanel's own immediate-mode
+// attach/detach requests are the same kind of self-inflicted visit
+// (retrospective Epic 3, action item 7) — its `before-request`/
+// `after-request` emits, wired below on the panel's own mount, bracket this
+// same flag around those requests too.
 let programmaticNavigation = false;
 
 const unregisterNavigationGuard = router.on('before', (event) => {
@@ -682,6 +686,8 @@ function submit() {
                     :mode="props.document ? 'immediate' : 'draft'"
                     :document-id="props.document?.id ?? null"
                     :draft-token="draftToken"
+                    @before-request="programmaticNavigation = true"
+                    @after-request="programmaticNavigation = false"
                 />
             </div>
 

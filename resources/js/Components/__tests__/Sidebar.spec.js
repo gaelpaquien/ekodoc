@@ -64,6 +64,19 @@ describe('Sidebar', () => {
         expect(searchLink.classes()).not.toContain('bg-primary');
     });
 
+    // Retro Epic 3, item 12: `isLibraryActive` is now an explicit whitelist
+    // of `Documents/*` surfaces rather than an exclusion — this asserts the
+    // Editor is actually one of the listed entries, not just that some
+    // surface (Show, above) still works.
+    it('renders the Bibliothèque nav item as active on the Documents/Editor page', () => {
+        pageState.component = 'Documents/Editor';
+        const wrapper = mount(Sidebar);
+        const navLink = wrapper.find('a[href="/"]');
+
+        expect(navLink.attributes('aria-current')).toBe('page');
+        expect(navLink.classes()).toContain('bg-primary');
+    });
+
     // AC1: a "Recherche" item links to `/recherche` and renders active only
     // on that dedicated surface, "Bibliothèque" turning inactive there.
     it('renders the Recherche nav item as active on the Documents/Search page, Bibliothèque turning inactive', () => {
@@ -93,6 +106,20 @@ describe('Sidebar', () => {
         expect(configLink.classes()).toContain('bg-primary');
         expect(navLink.attributes('aria-current')).toBeUndefined();
         expect(navLink.classes()).not.toContain('bg-primary');
+    });
+
+    // Retrospective Epic 3, action item 12: `isLibraryActive` is an explicit
+    // whitelist of `Documents/*` surfaces, not "everything that isn't
+    // Recherche/Configuration" — a future, unlisted `Documents/X` page must
+    // default to no nav item active at all, rather than silently lighting up
+    // "Bibliothèque".
+    it('activates no nav item for a Documents/* surface not in the whitelist', () => {
+        pageState.component = 'Documents/X';
+        const wrapper = mount(Sidebar);
+
+        expect(wrapper.find('a[href="/"]').attributes('aria-current')).toBeUndefined();
+        expect(wrapper.find('a[href="/recherche"]').attributes('aria-current')).toBeUndefined();
+        expect(wrapper.find('a[href="/configuration"]').attributes('aria-current')).toBeUndefined();
     });
 
     // AC5: navigating away from a document reached through the Recherche

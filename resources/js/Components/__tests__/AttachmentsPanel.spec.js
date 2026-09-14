@@ -242,6 +242,44 @@ describe('AttachmentsPanel', () => {
         expect(routerDeleteMock.mock.calls[0][1].preserveState).toBe(true);
     });
 
+    // --- before-request/after-request (retro Epic 3, item 7) --------------------
+    // Editor.vue relies on these to bracket its own unsaved-changes navigation
+    // guard around this panel's own immediate-mode requests — asserted here on
+    // the real component, since Editor.spec.js only exercises a stub.
+
+    it('emits before-request then after-request around an immediate attach', async () => {
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: [], mode: 'immediate', documentId: 42 },
+        });
+
+        await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pdfFile()] } });
+
+        expect(wrapper.emitted('before-request')).toHaveLength(1);
+        expect(wrapper.emitted('after-request')).toHaveLength(1);
+    });
+
+    it('emits before-request then after-request around an immediate detach', async () => {
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: immediateAttachments, mode: 'immediate', documentId: 42 },
+        });
+
+        await wrapper.find('button[aria-label="Retirer la pièce jointe contrat.pdf"]').trigger('click');
+
+        expect(wrapper.emitted('before-request')).toHaveLength(1);
+        expect(wrapper.emitted('after-request')).toHaveLength(1);
+    });
+
+    it('never emits before-request/after-request during a draft-mode upload', async () => {
+        const wrapper = mount(AttachmentsPanel, {
+            props: { attachments: [], mode: 'draft', draftToken: 'draft-token' },
+        });
+
+        await wrapper.find('.border-dashed').trigger('drop', { dataTransfer: { files: [pdfFile()] } });
+
+        expect(wrapper.emitted('before-request')).toBeUndefined();
+        expect(wrapper.emitted('after-request')).toBeUndefined();
+    });
+
     // --- Mode draft : ajout via upload + flash ----------------------------------
 
     it('posts to /documents/create/attachments on a valid drop in draft mode', async () => {

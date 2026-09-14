@@ -152,4 +152,29 @@ describe('TagSelector', () => {
 
         expect(input.attributes('aria-expanded')).toBe('true');
     });
+
+    // Retro Epic 3, item 6: the Library filter's own TagSelector and the
+    // Import modal's TagSelector are mounted at the same time once the
+    // modal opens — their ids must never collide, or `label[for]`/
+    // `aria-controls`/`aria-activedescendant` all point at the wrong node.
+    it('generates distinct ids for two simultaneously mounted instances', async () => {
+        const wrapperA = mount(TagSelector, { props: { modelValue: [] } });
+        const wrapperB = mount(TagSelector, { props: { modelValue: [] } });
+
+        const inputA = wrapperA.find('input');
+        const inputB = wrapperB.find('input');
+
+        expect(inputA.attributes('id')).not.toBe(inputB.attributes('id'));
+        expect(wrapperA.find('label').attributes('for')).toBe(inputA.attributes('id'));
+        expect(wrapperB.find('label').attributes('for')).toBe(inputB.attributes('id'));
+
+        await inputA.trigger('focus');
+        await settle();
+
+        expect(inputA.attributes('aria-controls')).not.toBe(undefined);
+        expect(wrapperA.find('ul').attributes('id')).toBe(inputA.attributes('aria-controls'));
+        // Instance B never opened its listbox — its aria-controls must stay
+        // unset rather than accidentally pointing at instance A's listbox id.
+        expect(inputB.attributes('aria-controls')).toBeUndefined();
+    });
 });

@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { router } from '@inertiajs/vue3';
 import Search from '@/Pages/Documents/Search.vue';
 
 // `@inertiajs/vue3` is mocked rather than imported for real (same reusable
@@ -30,6 +31,10 @@ const globalStubs = {
 };
 
 describe('Documents/Search', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
     // AC2: no term typed yet ⇒ neutral state, no result rows, no
     // "no results" message either (Recherche never shows the whole
     // library).
@@ -108,5 +113,23 @@ describe('Documents/Search', () => {
 
         expect(wrapper.findAll('li').length).toBe(0);
         expect(wrapper.text()).not.toContain('Aucun document ne correspond');
+    });
+
+    // Retro Epic 3, item 9: a filter-triggered partial reload must also
+    // refresh the shared `tags` prop, or a tag renamed/deleted elsewhere
+    // (e.g. via Configuration) stays stale in Recherche's own TagSelector.
+    it('includes tags in the partial reload once the debounced search fires', async () => {
+        vi.useFakeTimers();
+
+        const wrapper = mount(Search, {
+            props: { documents: [], search: '', tagFilters: [] },
+            global: { stubs: globalStubs },
+        });
+
+        await wrapper.find('input[type="search"]').setValue('contrat');
+        vi.advanceTimersByTime(300);
+
+        expect(router.get).toHaveBeenCalledTimes(1);
+        expect(router.get.mock.calls[0][2].only).toContain('tags');
     });
 });

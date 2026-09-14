@@ -86,7 +86,7 @@ function navigate() {
     router.get(
         '/recherche',
         params,
-        { preserveState: true, replace: true, only: ['documents', 'search', 'tagFilters'] },
+        { preserveState: true, replace: true, only: ['documents', 'search', 'tagFilters', 'tags'] },
     );
 }
 

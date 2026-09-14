@@ -54,7 +54,17 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['update:attachments', 'update:uploading']);
+// `before-request`/`after-request` (retrospective Epic 3, action item 7):
+// fired synchronously around every immediate-mode attach/detach request so
+// the host (Editor.vue) can bracket its own unsaved-changes navigation guard
+// the same way it already does around its own save/image-upload requests
+// (`programmaticNavigation`) — an Inertia visit fired from here is this
+// panel's own doing, not the user trying to leave, even while the title/
+// content elsewhere on the page is genuinely dirty. Draft mode never emits
+// these: its uploads are a local `tmp/{token}` round-trip triggered while
+// the document itself doesn't exist yet, not the scenario the guard was
+// wrongly firing for.
+const emit = defineEmits(['update:attachments', 'update:uploading', 'before-request', 'after-request']);
 
 const ACCEPTED_LABEL = 'PDF, Word (.docx), Excel (.xlsx)';
 
@@ -100,6 +110,7 @@ const immediateForm = useForm({ file: null });
 
 function attachImmediateFile(file) {
     immediateForm.file = file;
+    emit('before-request');
     immediateForm.post(`/documents/${props.documentId}/attachments`, {
         forceFormData: true,
         preserveState: true,
@@ -117,6 +128,7 @@ function attachImmediateFile(file) {
             isUploading.value = false;
         },
     });
+    emit('after-request');
 }
 
 const detachingAttachmentId = ref(null);
@@ -128,6 +140,7 @@ function detachImmediateAttachment(attachment) {
 
     detachingAttachmentId.value = attachment.id;
 
+    emit('before-request');
     router.delete(`/documents/${props.documentId}/attachments/${attachment.id}`, {
         preserveState: true,
         preserveScroll: true,
@@ -138,6 +151,7 @@ function detachImmediateAttachment(attachment) {
             detachingAttachmentId.value = null;
         },
     });
+    emit('after-request');
 }
 
 // --- Mode draft : upload vers la zone temporaire, liste tenue localement ---

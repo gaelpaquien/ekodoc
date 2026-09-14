@@ -285,3 +285,11 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-6-nested-table-fix.md`
   summary: `Editor.spec.js` (nouveau) ne suit pas la convention `attachTo: document.body` + `wrapper.unmount()` déjà en place dans `Configuration.spec.js`/`Search.spec.js` — les 5 montages du fichier n'appellent jamais `onBeforeUnmount`, donc le nettoyage du listener `beforeunload` et de l'abonnement `router.on('before', ...)` d'`Editor.vue` n'est jamais exercé par ce test (accumulation silencieuse across les 5 `mount()`, sans échec observé sur la suite actuelle).
   evidence: Blind Hunter (step-04 review, itération 2) — suite complète (80/80) verte malgré cette lacune ; à corriger si `Editor.spec.js` grossit ou si des avertissements de fuite apparaissent, en alignant sur le patron déjà établi par les specs voisines du même dossier.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-corrections-post-retrospective-epic-3.md`
+  summary: Le tri insensible à la casse des tags (`Str::lower()`) est dupliqué mot pour mot entre `TagController::index()` et `HandleInertiaRequests::share()` plutôt que factorisé (ex. scope/méthode sur le modèle `Tag`) — seul un commentaire ("rester en lockstep") empêche les deux de diverger à une future modification.
+  evidence: Blind Hunter (step-04 review) — extraction légitime mais touche `app/Models/Tag.php`, hors périmètre de fichiers annoncé par cette spec (Code Map limité à `TagController.php`/`HandleInertiaRequests.php`) ; à faire lors d'une prochaine session touchant l'un des deux endroits.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-corrections-post-retrospective-epic-3.md`
+  summary: Le docblock de `app/Models/Tag.php` est obsolète — il indique encore que la création/le renommage/la suppression d'un tag sont "hors périmètre de la story 3.5" et que les lignes viennent de `TagFactory`/tinker, alors que `TagController` gère déjà entièrement le CRUD (confirmé par cette même spec et par `HandleInertiaRequests.php`, dont le commentaire miroir a déjà été corrigé).
+  evidence: Blind Hunter (step-04 review) — désynchronisation préexistante (non introduite par cette spec), simple mise à jour de commentaire, hors périmètre de fichiers annoncé (`Tag.php` non listé dans le Code Map).

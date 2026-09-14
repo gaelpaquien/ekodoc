@@ -1,6 +1,8 @@
 import { mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { router } from '@inertiajs/vue3';
 import Editor from '@/Pages/Documents/Editor.vue';
+import AttachmentsPanel from '@/Components/AttachmentsPanel.vue';
 
 // `@tiptap/vue-3` is mocked out entirely — mounting a real TipTap/ProseMirror
 // instance in jsdom is unnecessary for this story (only the toolbar's
@@ -60,7 +62,16 @@ vi.mock('@tiptap/vue-3', async () => {
     };
 
     return {
-        useEditor: () => ref(mockEditor),
+        // Invoking `onCreate` synchronously (as TipTap does in practice, same
+        // tick) lets tests reach a mounted state where `initialSnapshot` is
+        // set and `isDirty` reflects real edits — needed by the navigation
+        // guard tests below. Harmless for the table tests above, which never
+        // read `isDirty`/`isLoadingContent`.
+        useEditor: (options) => {
+            options?.onCreate?.({ editor: mockEditor });
+
+            return ref(mockEditor);
+        },
         EditorContent: { name: 'EditorContent', template: '<div class="editor-content-stub" />' },
     };
 });
@@ -180,5 +191,65 @@ describe('Documents/Editor — tableaux imbriqués (spec-3-6)', () => {
 
         expect(deleteTableMock).toHaveBeenCalledTimes(1);
         expect(runMock).toHaveBeenCalled();
+    });
+});
+
+// Retrospective Epic 3, action item 7: AttachmentsPanel's own immediate-mode
+// attach/detach requests must not trip Editor's unsaved-changes guard even
+// while the document is genuinely dirty elsewhere (title/content/tags).
+// `AttachmentsPanel` is left stubbed (see `globalStubs` above) — only its
+// `before-request`/`after-request` emits matter here, not its internal
+// upload/delete plumbing (already covered by AttachmentsPanel.spec.js).
+describe('Documents/Editor — garde de navigation vs AttachmentsPanel (retro Epic 3, item 7)', () => {
+    async function mountDirtyEditor() {
+        const wrapper = mount(Editor, {
+            props: {
+                document: { id: 1, title: 'Titre initial', content_html: '', tags: [], attachments: [] },
+            },
+            global: { stubs: globalStubs },
+        });
+
+        await wrapper.find('#document-title').setValue('Titre modifié');
+
+        return wrapper;
+    }
+
+    function latestBeforeGuard() {
+        const call = router.on.mock.calls.filter(([event]) => event === 'before').at(-1);
+
+        return call[1];
+    }
+
+    it('shows the confirmation when a real navigation is attempted while dirty (sanity baseline)', async () => {
+        window.confirm = vi.fn(() => true);
+        await mountDirtyEditor();
+
+        latestBeforeGuard()({ preventDefault: vi.fn() });
+
+        expect(window.confirm).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not show the confirmation while an AttachmentsPanel immediate-mode request is in flight', async () => {
+        window.confirm = vi.fn(() => true);
+        const wrapper = await mountDirtyEditor();
+        const beforeGuard = latestBeforeGuard();
+
+        wrapper.findComponent(AttachmentsPanel).vm.$emit('before-request');
+        beforeGuard({ preventDefault: vi.fn() });
+
+        expect(window.confirm).not.toHaveBeenCalled();
+    });
+
+    it('re-arms the confirmation once the AttachmentsPanel request completes', async () => {
+        window.confirm = vi.fn(() => true);
+        const wrapper = await mountDirtyEditor();
+        const beforeGuard = latestBeforeGuard();
+        const attachmentsPanel = wrapper.findComponent(AttachmentsPanel);
+
+        attachmentsPanel.vm.$emit('before-request');
+        attachmentsPanel.vm.$emit('after-request');
+        beforeGuard({ preventDefault: vi.fn() });
+
+        expect(window.confirm).toHaveBeenCalledTimes(1);
     });
 });

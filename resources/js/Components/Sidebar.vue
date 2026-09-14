@@ -29,10 +29,19 @@ function toggleTheme() {
 // "Configuration" gets the same dedicated-surface treatment (Code Map,
 // spec-3-5): active only on `Documents/Configuration`, with "Bibliothèque"
 // redefined to exclude it too, alongside Recherche.
+//
+// "Bibliothèque" itself is an explicit whitelist of every `Documents/*`
+// surface it actually covers, not "everything that isn't Recherche/
+// Configuration" (retrospective Epic 3, action item 12) — an exclusion list
+// silently lights up "Bibliothèque" for any future page nobody thought to
+// add to it here; a whitelist instead defaults a new, unlisted surface to
+// no nav item active at all.
+const LIBRARY_SURFACES = ['Documents/Index', 'Documents/Editor', 'Documents/Show'];
+
 const page = usePage();
 const isSearchActive = computed(() => page.component === 'Documents/Search');
 const isConfigActive = computed(() => page.component === 'Documents/Configuration');
-const isLibraryActive = computed(() => !isSearchActive.value && !isConfigActive.value);
+const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component));
 </script>
 
 <template>
