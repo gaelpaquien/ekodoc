@@ -1,6 +1,7 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import ImportModal from '@/Components/ImportModal.vue';
 
 // Theme toggle: logic reused verbatim from the old AppHeader.vue (Boundaries
 // & Constraints, spec-3-2 — "réutilisé tel quel, seulement déplacé/restylé
@@ -42,6 +43,13 @@ const page = usePage();
 const isSearchActive = computed(() => page.component === 'Documents/Search');
 const isConfigActive = computed(() => page.component === 'Documents/Configuration');
 const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component));
+
+// "Créer un document"/"Importer" moved here from Documents/Index.vue (spec
+// spec-sidebar-document-actions) so both actions are available on all 5
+// surfaces, not just the Library page content. ImportModal is reused as-is;
+// the component that triggers it owns its open state, same convention as
+// the former Index.vue.
+const isImportModalOpen = ref(false);
 </script>
 
 <template>
@@ -51,6 +59,22 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
         <span class="mb-5 block px-2 text-sm font-semibold tracking-tight">
             EkoDoc
         </span>
+
+        <div class="mb-5 flex flex-col gap-2" role="group" aria-label="Actions document">
+            <Link
+                href="/documents/create"
+                class="rounded-md border border-border bg-surface-alt px-4 py-2 text-center text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+            >
+                Créer un document
+            </Link>
+            <button
+                type="button"
+                class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                @click="isImportModalOpen = true"
+            >
+                Importer
+            </button>
+        </div>
 
         <nav class="flex flex-col gap-0.5" aria-label="Navigation principale">
             <Link
@@ -107,4 +131,6 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
             Made with 💔 Claude
         </p>
     </aside>
+
+    <ImportModal :open="isImportModalOpen" @close="isImportModalOpen = false" />
 </template>

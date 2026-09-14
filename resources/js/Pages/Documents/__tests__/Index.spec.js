@@ -28,12 +28,13 @@ vi.mock('@inertiajs/vue3', () => ({
     router: { get: vi.fn(), on: vi.fn(() => () => {}) },
 }));
 
-// AppLayout and ImportModal are stubbed: this file exercises Index.vue's own
-// template (empty-state messaging, document-row markup), not the layout
-// chrome or the import flow (both out of scope for spec-3-2's I/O matrix).
+// AppLayout is stubbed: this file exercises Index.vue's own template
+// (empty-state messaging, document-row markup), not the layout chrome
+// (out of scope for spec-3-2's I/O matrix). ImportModal is no longer
+// imported by Index.vue (spec-sidebar-document-actions moved it into
+// Sidebar.vue), so no stub is needed for it here.
 const globalStubs = {
     AppLayout: { template: '<div><slot /></div>' },
-    ImportModal: true,
 };
 
 describe('Documents/Index', () => {
@@ -50,15 +51,16 @@ describe('Documents/Index', () => {
 
     // Code review finding (spec-3-4): distinct from the filtered-empty case
     // above — no active filters, plain empty library.
-    it('shows the plain empty-library message and CTA when there are no documents and no active filters', () => {
+    it('shows the plain empty-library message when there are no documents and no active filters', () => {
         const wrapper = mount(Index, {
             props: { documents: { data: [], links: [] }, tagFilters: [], typeFilters: [] },
             global: { stubs: globalStubs },
         });
 
         expect(wrapper.text()).toContain("Aucun document pour l'instant.");
-        expect(wrapper.text()).toContain('Importer un document');
         expect(wrapper.findAll('li').length).toBe(0);
+        expect(wrapper.find('a[href="/documents/create"]').exists()).toBe(false);
+        expect(wrapper.text()).not.toContain('Importer');
     });
 
     // I/O matrix: "Ligne de document" — badge + title + 2 TagChip + date,

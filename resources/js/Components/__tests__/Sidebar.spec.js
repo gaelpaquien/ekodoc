@@ -23,6 +23,20 @@ vi.mock('@inertiajs/vue3', async () => {
     };
 });
 
+// ImportModal is stubbed (spec-sidebar-document-actions, Code Map): the real
+// component calls `useForm()` from `@inertiajs/vue3` unconditionally at
+// setup time, which the mock above doesn't provide — this file only needs
+// to assert that Sidebar renders it and drives its `open` prop.
+// Same reusable-stub convention as the `Link` mock above.
+vi.mock('@/Components/ImportModal.vue', () => ({
+    default: {
+        name: 'ImportModal',
+        props: ['open'],
+        emits: ['close'],
+        template: '<div v-if="open" data-testid="import-modal-stub">ImportModal stub</div>',
+    },
+}));
+
 const pageState = usePage();
 
 describe('Sidebar', () => {
@@ -46,6 +60,33 @@ describe('Sidebar', () => {
         expect(wrapper.text()).toContain('Recherche');
         expect(wrapper.text()).toContain('Configuration');
         expect(wrapper.text()).toContain('Made with 💔 Claude');
+    });
+
+    // AC1: "Créer un document" and "Importer" render at the top of the
+    // sidebar, above the nav links, on every surface (Boundaries &
+    // Constraints: no fixed page condition gates them).
+    it('renders "Créer un document" and "Importer" above the nav links', () => {
+        const wrapper = mount(Sidebar);
+
+        const createLink = wrapper.find('a[href="/documents/create"]');
+        expect(createLink.exists()).toBe(true);
+        expect(createLink.text()).toBe('Créer un document');
+
+        const buttons = wrapper.findAll('button');
+        expect(buttons[0].text()).toBe('Importer');
+    });
+
+    // AC3: clicking "Importer" opens the modal (rendered here via the
+    // stubbed ImportModal, `open` prop reflecting the click).
+    it('opens the import modal when "Importer" is clicked', async () => {
+        const wrapper = mount(Sidebar);
+
+        expect(wrapper.find('[data-testid="import-modal-stub"]').exists()).toBe(false);
+
+        const importButton = wrapper.findAll('button').find((button) => button.text() === 'Importer');
+        await importButton.trigger('click');
+
+        expect(wrapper.find('[data-testid="import-modal-stub"]').exists()).toBe(true);
     });
 
     // AC1/AC5: "Bibliothèque" renders active on every surface except the
@@ -138,18 +179,24 @@ describe('Sidebar', () => {
         });
     });
 
-    // I/O matrix "Navigation clavier sidebar": focus order is nav (all
-    // three items) then toggle then footer — the footer itself is static
-    // text, not a separate focusable stop.
-    it('exposes exactly the three nav links then the theme toggle as focusable items, in that order', () => {
+    // I/O matrix "Navigation clavier sidebar", updated by
+    // spec-sidebar-document-actions: focus order is now "Créer un document"
+    // then "Importer" then the three nav links then the theme toggle then
+    // footer — the footer itself is static text, not a separate focusable
+    // stop.
+    it('exposes "Créer un document", "Importer", the three nav links then the theme toggle as focusable items, in that order', () => {
         const wrapper = mount(Sidebar);
         const focusable = wrapper.findAll('a, button');
 
-        expect(focusable).toHaveLength(4);
+        expect(focusable).toHaveLength(6);
         expect(focusable[0].element.tagName).toBe('A');
-        expect(focusable[1].element.tagName).toBe('A');
+        expect(focusable[0].text()).toBe('Créer un document');
+        expect(focusable[1].element.tagName).toBe('BUTTON');
+        expect(focusable[1].text()).toBe('Importer');
         expect(focusable[2].element.tagName).toBe('A');
-        expect(focusable[3].element.tagName).toBe('BUTTON');
+        expect(focusable[3].element.tagName).toBe('A');
+        expect(focusable[4].element.tagName).toBe('A');
+        expect(focusable[5].element.tagName).toBe('BUTTON');
     });
 
     // I/O matrix "Toggle thème": clicking flips `.dark` on <html> and
@@ -158,7 +205,7 @@ describe('Sidebar', () => {
     it('toggles the `.dark` class on <html> and persists the choice in localStorage', async () => {
         document.documentElement.classList.remove('dark');
         const wrapper = mount(Sidebar);
-        const toggle = wrapper.find('button');
+        const toggle = wrapper.find('[aria-label="Passer en mode sombre"]');
 
         expect(document.documentElement.classList.contains('dark')).toBe(false);
 
