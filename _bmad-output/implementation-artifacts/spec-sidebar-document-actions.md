@@ -128,3 +128,8 @@ Commit `b8c1ea2` (retouches demandées hors epic, voir `spec-sidebar-menu-adjust
 - **Toggle thème** : sorti de `<nav aria-label="Navigation principale">` (ce n'est pas une destination de navigation) mais reste visuellement dans la même liste, juste après "Configuration", via un conteneur `flex flex-col gap-0.5` partagé et `<nav class="contents">`.
 - **Séparateur** : un `<hr>` a été ajouté entre le bloc "EkoDoc - Démo" et la liste des boutons.
 - **Footer** : l'emoji "💔" a été remplacé par une icône SVG cœur barrée de deux traits en croix (rendu "annulé", pas "brisé").
+
+Commit `a183c58` (correction sur retour humain du commit `b8c1ea2` ci-dessus) :
+
+- **Cœur du footer** : le tracé SVG n'était pas centré (croix décalée par rapport au cœur) et sa couleur héritait du gris `text-muted` du paragraphe. Remplacé par un tracé symétrique (centré en x=12) et une couleur fixe `text-red-600 dark:text-red-400`, pour un cœur rouge correctement barré au centre.
+- **Second séparateur** : un `<hr>` a été ajouté entre la liste des boutons et le footer "Made with ... Claude", symétrique à celui déjà présent sous "EkoDoc - Démo".
