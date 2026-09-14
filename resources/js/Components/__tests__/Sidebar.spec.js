@@ -51,23 +51,26 @@ describe('Sidebar', () => {
         expect(wrapper.text()).not.toContain('💔');
     });
 
-    // Separator between the "EkoDoc - Démo" brand and the nav/toggle button
-    // list, added on human request.
-    it('renders a separator between the brand and the button list', () => {
+    // Separators added on human request: one between the "EkoDoc - Démo"
+    // brand and the nav/toggle button list, one between that list and the
+    // "Made with" footer.
+    it('renders a separator above the button list and another above the footer', () => {
         const wrapper = mount(Sidebar);
 
-        expect(wrapper.find('hr').exists()).toBe(true);
+        expect(wrapper.findAll('hr')).toHaveLength(2);
     });
 
     // The footer's broken-heart emoji ("💔") was replaced with an inline
     // heart SVG crossed out by two diagonal lines (a "cancelled" heart, not
     // a cracked one), on human request.
-    it('renders the footer heart as a crossed-out SVG icon, not the broken-heart emoji', () => {
+    it('renders the footer heart as a red, crossed-out SVG icon, not the broken-heart emoji', () => {
         const wrapper = mount(Sidebar);
         const footer = wrapper.findAll('p').find((p) => p.text().includes('Claude'));
+        const heart = footer.find('svg');
 
-        expect(footer.find('svg').exists()).toBe(true);
-        expect(footer.findAll('line')).toHaveLength(2);
+        expect(heart.exists()).toBe(true);
+        expect(heart.findAll('line')).toHaveLength(2);
+        expect(heart.classes()).toContain('text-red-600');
     });
 
     // AC1: "Créer un document" and "Importer un document" render as part of
