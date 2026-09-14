@@ -101,3 +101,24 @@ Le placement "en haut, au-dessus de la navigation" et le retrait du CTA d'état 
 
 - Stub `ImportModal` ajouté car `AppLayout` monte désormais la sidebar réelle.
   [`AppLayout.spec.js:29`](../../resources/js/Layouts/__tests__/AppLayout.spec.js#L29)
+
+## Post-Approval Adjustments
+
+<!-- Ce spec a le statut `done` et son <frozen-after-approval> n'a pas été rouvert : les ajustements
+     ci-dessous ont été faits en itérant directement avec l'humain après la première implémentation,
+     pas via une boucle de revue step-04 — d'où cette note plutôt qu'une entrée dans Spec Change Log
+     (réservé aux boucles bad_spec/intent_gap). Le Code Map ci-dessus décrit l'état au moment de
+     l'approbation initiale (commit `30a97a3`) et n'a pas été réécrit ; cette section documente ce qui
+     a changé depuis, pour qu'un futur lecteur ne se fie pas au Code Map seul.
+-->
+
+Commit `5fb2832` (après `30a97a3`) a apporté, sur retours humains successifs :
+
+- **Libellés** : "Bibliothèque" → "Documents", "Importer" → "Importer un document" (cohérence avec le nom du bouton "Créer un document").
+- **Icônes** : chaque item du menu (Documents, Créer un document, Importer un document, Recherche, Configuration, toggle thème) a désormais une icône SVG inline, alignée à gauche comme le reste du menu.
+- **Structure** : "Créer un document" et "Importer un document" ne sont plus un bloc séparé au-dessus de `<nav>` (avec fond/bordure propres) — ils sont intégrés au même `<nav>` que les 3 liens existants, dans l'ordre Documents / Créer un document / Importer un document / Recherche / Configuration. Le style visuel décrit dans Boundaries & Constraints (bouton bordé vs `bg-primary` plein) a été remplacé par un style unique, identique à celui des liens de nav.
+- **État actif** : "Créer un document" a son propre état actif (`isCreateActive`, route `/documents/create` uniquement, distinct de l'édition d'un document existant) et exclut désormais explicitement "Documents" de son propre état actif sur cette route (les deux ne s'allument plus ensemble). "Importer un document" n'a volontairement aucun état actif — c'est une popup, pas un changement de page.
+- **Largeur sidebar** : `--spacing-sidebar-width` passé de 220px à 240px (`resources/css/app.css`).
+- **Hors scope initial** : les liens "&larr; Retour à la bibliothèque" de `Editor.vue`/`Show.vue` ont été retirés (navigation désormais exclusive à la sidebar) — changement demandé dans la même conversation mais non couvert par l'Intent d'origine de ce spec.
+
+Tests : `resources/js/Components/__tests__/Sidebar.spec.js` mis à jour en conséquence à chaque étape (95/95 tests passent sur l'ensemble de la suite au commit `5fb2832`).
