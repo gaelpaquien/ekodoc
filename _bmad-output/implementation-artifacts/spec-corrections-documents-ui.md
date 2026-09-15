@@ -181,3 +181,10 @@ Commit `f220967` (4ᵉ correction sur retour humain — abandon du lime, et un l
 - **Libellé "Tags" en double** : la page Recherche affichait le `<legend>` "Filtrer par tag" du filtre directement suivi du label interne "Tags" de `TagSelector` ; la fiche document affichait de même son `<dt>` "Tags :" suivi du même label interne. Ajout d'une prop `showLabel` (défaut `true`) sur `TagSelector.vue` — repli sur `aria-label="Tags"` sur le champ quand `false`, pour qu'il reste nommé pour un lecteur d'écran. Mise à `false` sur ces deux usages (`Search.vue`, `Show.vue`) ; `Editor.vue`/`Import.vue`, qui n'ont pas de label externe, gardent le défaut.
 
 Tests : `TagSelector.spec.js` complété (2 tests `showLabel`) ; suite complète à 126/126 au commit `f220967`. Vérification visuelle toujours non effectuée (pas d'outil navigateur).
+
+Commit `9e9aad9` (5ᵉ correction sur retour humain — nommage accessible du champ recherche, et 2 derniers `max-w-xs` restants) :
+
+- **Nommage accessible incohérent** : le champ de recherche (`Search.vue`) était le seul de l'app à porter son nom accessible via `aria-label` directement sur l'`<input>`, sans `<label for>` associé — tous les autres champs (Titre, Créer un tag, Nouveau nom du tag, Tags…) passent par un `<label for>` (visible ou `sr-only`). Ajouté un `<label for="search-input" class="sr-only">`, retiré `aria-label` (redondant une fois le label en place) — même mécanisme partout désormais.
+- **2 derniers `max-w-xs` oubliés** : les champs de nom de tag (création et renommage) sur la page Configuration. Retirés ; le champ de création est désormais dans un `<div class="flex-1">` (même pattern déjà utilisé par le champ de renommage) pour occuper l'espace disponible à côté du bouton "Créer" plutôt qu'une largeur fixe.
+
+Tests : suite complète à 126/126 au commit `9e9aad9`. Vérification visuelle toujours non effectuée (pas d'outil navigateur).
