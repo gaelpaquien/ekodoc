@@ -166,3 +166,11 @@ Commit `560dc84` (2ᵉ correction sur retour humain du commit `38f9079` ci-dessu
 - **Vérifié à nouveau qu'aucun input/select visible n'existe hors des 6 déjà migrés vers `TextInput.vue`** : `resources/js/Pages` ne contient que le module Documents (pas d'autre module de pages dans l'app), et les 3 seuls `<input>` bruts restants dans `resources/js` sont des `type="file" class="sr-only"` (sélecteurs de fichier invisibles, hors du périmètre "inputs/selects visibles").
 
 Tests : suite complète à 124/124 au commit `560dc84`. Vérification visuelle non effectuée par l'agent (pas d'outil navigateur disponible dans cette session) — à confirmer par l'humain après rechargement complet du navigateur (un onglet déjà ouvert garde l'ancien bundle JS/CSS en mémoire tant qu'aucun rechargement complet n'a eu lieu).
+
+Commit `791f7b9` (3ᵉ correction sur retour humain, portant sur l'épaisseur/hauteur/largeur plutôt que la couleur) :
+
+- **Bordure plus épaisse** : `border` → `border-2` sur `TextInput.vue`.
+- **Hauteur incohérente entre champs** : le titre de l'éditeur (`size="text-lg font-semibold"`) était visiblement plus haut que les autres champs — la hauteur dépendait de `py-2` + la hauteur de ligne du texte, qui varie avec sa taille. Remplacé par `h-10` fixe (et `py-2` retiré), indépendant de `size`.
+- **`TagSelector` plafonné à `max-w-xs`** dans l'éditeur (`Editor.vue`), le filtre "Filtrer par tag" de la page Recherche (`Search.vue`) et la ligne "Tags :" de la fiche document (`Show.vue`) — retiré aux 3 endroits (décision humaine explicite : passer les 4 usages de `TagSelector` en pleine largeur plutôt que seulement celui de l'éditeur, `Import.vue` l'étant déjà).
+
+Tests : suite complète à 124/124 au commit `791f7b9`. Vérification visuelle toujours non effectuée (pas d'outil navigateur) — à confirmer par l'humain après rechargement complet.
