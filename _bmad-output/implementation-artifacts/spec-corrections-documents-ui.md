@@ -188,3 +188,9 @@ Commit `9e9aad9` (5ᵉ correction sur retour humain — nommage accessible du ch
 - **2 derniers `max-w-xs` oubliés** : les champs de nom de tag (création et renommage) sur la page Configuration. Retirés ; le champ de création est désormais dans un `<div class="flex-1">` (même pattern déjà utilisé par le champ de renommage) pour occuper l'espace disponible à côté du bouton "Créer" plutôt qu'une largeur fixe.
 
 Tests : suite complète à 126/126 au commit `9e9aad9`. Vérification visuelle toujours non effectuée (pas d'outil navigateur).
+
+Commit `3b07a25` (6ᵉ correction sur retour humain, confirmée par capture d'écran cette fois) :
+
+- **Texte du champ Titre toujours plus grand/gras que les autres** : la capture montrait "Titre du document" (`text-lg font-semibold`) nettement plus gros que "Rechercher un tag…" (`text-sm`) dans le champ Tags juste en dessous. La prop `size` de `TextInput.vue` — dont c'était le seul usage restant — a été retirée entièrement plutôt que laissée inutilisée : tous les champs rendent désormais le même `text-sm`, sans échappatoire pour en dévier.
+
+Tests : `TextInput.spec.js` mis à jour (le test `size` remplacé par un test affirmant `text-sm` partout) ; suite complète à 126/126 au commit `3b07a25`.
