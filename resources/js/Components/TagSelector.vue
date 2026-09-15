@@ -1,6 +1,7 @@
 <script setup>
 import { usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import TextInput from '@/Components/TextInput.vue';
 
 // Reusable multi-tag selector — mounted identically everywhere a document's
 // tags are assigned or filtered on (Import modal, editor create/edit,
@@ -176,11 +177,10 @@ function onKeydown(event) {
         </div>
 
         <div class="relative">
-            <input
+            <TextInput
                 :id="`${instanceId}-input`"
                 ref="inputRef"
                 v-model="query"
-                type="text"
                 role="combobox"
                 aria-autocomplete="list"
                 :aria-expanded="isOpen"
@@ -189,7 +189,6 @@ function onKeydown(event) {
                     ? `${instanceId}-option-${filteredTags[highlightedIndex].id}`
                     : undefined"
                 placeholder="Rechercher un tag…"
-                class="w-full rounded-sm border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:border-primary"
                 :class="disabled ? 'cursor-not-allowed opacity-50' : ''"
                 :readonly="disabled"
                 :aria-disabled="disabled"
@@ -197,7 +196,7 @@ function onKeydown(event) {
                 @focus="openSuggestions"
                 @blur="closeSuggestions"
                 @keydown="onKeydown"
-            >
+            />
 
             <ul
                 v-if="isOpen"

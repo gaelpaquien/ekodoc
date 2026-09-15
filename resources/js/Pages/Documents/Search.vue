@@ -5,6 +5,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import DocumentTypeBadge from '@/Components/DocumentTypeBadge.vue';
 import TagSelector from '@/Components/TagSelector.vue';
 import TagChip from '@/Components/TagChip.vue';
+import TextInput from '@/Components/TextInput.vue';
 
 const props = defineProps({
     documents: {
@@ -194,14 +195,13 @@ function formatDate(dateString) {
             </h1>
 
             <div class="relative mb-6">
-                <input
+                <TextInput
                     ref="searchInputRef"
                     v-model="searchTerm"
                     type="search"
                     placeholder="Rechercher un document (appuyez sur / pour y accéder)"
-                    class="w-full rounded-md border border-border bg-background px-4 py-2 text-sm text-foreground focus-visible:border-primary"
                     aria-label="Rechercher un document"
-                >
+                />
             </div>
 
             <div class="mb-6 flex flex-col gap-3 rounded-lg border border-border p-4">

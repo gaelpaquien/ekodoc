@@ -11,6 +11,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue';
 import TagSelector from '@/Components/TagSelector.vue';
 import AttachmentsPanel from '@/Components/AttachmentsPanel.vue';
+import TextInput from '@/Components/TextInput.vue';
 
 // Present only when reopening a previously created document to correct it
 // (spec-2-3) — absent (null) on a brand-new draft, in which case every
@@ -532,14 +533,13 @@ function submit() {
                 <label for="document-title" class="mb-1 block text-sm font-medium text-foreground">
                     Titre
                 </label>
-                <input
+                <TextInput
                     id="document-title"
                     ref="titleInputRef"
                     v-model="form.title"
-                    type="text"
                     placeholder="Titre du document"
-                    class="w-full rounded-sm border border-border bg-background px-3 py-2 text-lg font-semibold text-foreground focus-visible:border-primary"
-                >
+                    size="text-lg font-semibold"
+                />
                 <p v-if="form.errors.title" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
                     {{ form.errors.title }}
                 </p>
@@ -719,16 +719,14 @@ function submit() {
                     <label for="image-alt-input" class="mb-1 block text-sm font-medium text-foreground">
                         Texte alternatif
                     </label>
-                    <input
+                    <TextInput
                         id="image-alt-input"
                         ref="imageAltInputRef"
                         v-model="pendingImageAlt"
-                        type="text"
                         placeholder="Décrivez cette image"
-                        class="w-full rounded-sm border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50"
                         :disabled="isUploadingImage"
                         @keydown.enter.prevent="uploadPendingImage"
-                    >
+                    />
                 </div>
 
                 <p v-if="imageDialogError" class="mt-3 text-sm text-red-600 dark:text-red-400" role="alert">

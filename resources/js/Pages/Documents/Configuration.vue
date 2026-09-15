@@ -2,6 +2,7 @@
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, onMounted, ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import TextInput from '@/Components/TextInput.vue';
 
 const props = defineProps({
     tags: {
@@ -259,17 +260,16 @@ function trapDeleteDialogFocus(event) {
                     Créer un tag
                 </label>
                 <div class="flex gap-2">
-                    <input
+                    <TextInput
                         id="create-tag-name"
                         ref="createNameInputRef"
                         v-model="createForm.name"
-                        type="text"
                         placeholder="Nom du tag"
                         maxlength="255"
-                        class="w-full max-w-xs rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:border-primary"
+                        class="max-w-xs"
                         :aria-invalid="!!createNameError"
                         :disabled="createForm.processing"
-                    >
+                    />
                     <button
                         type="submit"
                         class="shrink-0 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
@@ -301,17 +301,16 @@ function trapDeleteDialogFocus(event) {
                                 <label :for="`rename-tag-name-${tag.id}`" class="sr-only">
                                     Nouveau nom du tag « {{ tag.name }} »
                                 </label>
-                                <input
+                                <TextInput
                                     :id="`rename-tag-name-${tag.id}`"
                                     :ref="setRenameInputRef"
                                     v-model="renameForm.name"
-                                    type="text"
                                     maxlength="255"
-                                    class="w-full max-w-xs rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:border-primary"
+                                    class="max-w-xs"
                                     :aria-invalid="!!renameNameError"
                                     :disabled="renameForm.processing"
                                     @keydown.escape="cancelRename"
-                                >
+                                />
                                 <p v-if="renameNameError" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
                                     {{ renameNameError }}
                                 </p>
