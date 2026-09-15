@@ -205,7 +205,7 @@ function formatDate(dateString) {
             </div>
 
             <div class="mb-6 flex flex-col gap-3 rounded-lg border border-border p-4">
-                <fieldset class="max-w-xs">
+                <fieldset>
                     <legend class="mb-2 text-sm font-medium text-foreground">
                         Filtrer par tag
                     </legend>

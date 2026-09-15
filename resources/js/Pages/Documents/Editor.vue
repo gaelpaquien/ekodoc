@@ -652,7 +652,7 @@ function submit() {
                 </p>
             </div>
 
-            <div class="mt-6 max-w-xs">
+            <div class="mt-6">
                 <TagSelector v-model="form.tag_ids" :disabled="form.processing" />
                 <p v-if="form.errors.tag_ids" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
                     {{ form.errors.tag_ids }}

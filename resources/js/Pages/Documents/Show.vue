@@ -444,7 +444,7 @@ onBeforeUnmount(() => {
                 </div>
                 <div class="flex items-start gap-2">
                     <dt class="mt-2 font-medium">Tags :</dt>
-                    <dd class="w-full max-w-xs">
+                    <dd class="w-full">
                         <TagSelector :model-value="tagIds" :disabled="isSavingTags" @update:model-value="onTagsChange" />
                         <p v-if="tagsError" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
                             {{ tagsError }}
