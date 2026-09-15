@@ -195,12 +195,15 @@ function formatDate(dateString) {
             </h1>
 
             <div class="relative mb-6">
+                <label for="search-input" class="sr-only">
+                    Rechercher un document
+                </label>
                 <TextInput
+                    id="search-input"
                     ref="searchInputRef"
                     v-model="searchTerm"
                     type="search"
                     placeholder="Rechercher un document (appuyez sur / pour y accéder)"
-                    aria-label="Rechercher un document"
                 />
             </div>
 

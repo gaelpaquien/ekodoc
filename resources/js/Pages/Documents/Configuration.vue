@@ -260,16 +260,17 @@ function trapDeleteDialogFocus(event) {
                     Créer un tag
                 </label>
                 <div class="flex gap-2">
-                    <TextInput
-                        id="create-tag-name"
-                        ref="createNameInputRef"
-                        v-model="createForm.name"
-                        placeholder="Nom du tag"
-                        maxlength="255"
-                        class="max-w-xs"
-                        :aria-invalid="!!createNameError"
-                        :disabled="createForm.processing"
-                    />
+                    <div class="flex-1">
+                        <TextInput
+                            id="create-tag-name"
+                            ref="createNameInputRef"
+                            v-model="createForm.name"
+                            placeholder="Nom du tag"
+                            maxlength="255"
+                            :aria-invalid="!!createNameError"
+                            :disabled="createForm.processing"
+                        />
+                    </div>
                     <button
                         type="submit"
                         class="shrink-0 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
@@ -306,7 +307,6 @@ function trapDeleteDialogFocus(event) {
                                     :ref="setRenameInputRef"
                                     v-model="renameForm.name"
                                     maxlength="255"
-                                    class="max-w-xs"
                                     :aria-invalid="!!renameNameError"
                                     :disabled="renameForm.processing"
                                     @keydown.escape="cancelRename"
