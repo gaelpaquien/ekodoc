@@ -60,7 +60,7 @@ it('exports a created document with an inline image, embedding it in the generat
     // the produced archive. A .docx is a zip: unzip the actual response
     // body and confirm a media entry exists under word/media/, which is
     // where PhpWord's Word2007 writer places every embedded image.
-    $docxPath = tempnam(sys_get_temp_dir(), 'ekodoc_word_test_');
+    $docxPath = tempnam(sys_get_temp_dir(), 'bmad_demo_word_test_');
     file_put_contents($docxPath, $response->getContent());
 
     try {

@@ -33,7 +33,7 @@ describe('Sidebar', () => {
         document.documentElement.classList.remove('dark');
 
         try {
-            localStorage.removeItem('ekodoc-theme');
+            localStorage.removeItem('bmad-demo-theme');
         } catch (e) {
             // Private browsing / storage disabled — nothing to clean up.
         }
@@ -42,7 +42,7 @@ describe('Sidebar', () => {
     it('renders the brand, the nav items and the footer', () => {
         const wrapper = mount(Sidebar);
 
-        expect(wrapper.text()).toContain('EkoDoc');
+        expect(wrapper.text()).toContain('BMAD Démo');
         expect(wrapper.text()).toContain('Documents');
         expect(wrapper.text()).toContain('Recherche');
         expect(wrapper.text()).toContain('Configuration');
@@ -51,7 +51,7 @@ describe('Sidebar', () => {
         expect(wrapper.text()).not.toContain('💔');
     });
 
-    // Separators added on human request: one between the "EkoDoc - Démo"
+    // Separators added on human request: one between the "BMAD Démo"
     // brand and the nav/toggle button list, one between that list and the
     // "Made with" footer.
     it('renders a separator above the button list and another above the footer', () => {
@@ -64,8 +64,10 @@ describe('Sidebar', () => {
     // heart SVG crossed out by two diagonal lines (a "cancelled" heart, not
     // a cracked one), on human request. The heart itself stays red, but the
     // two cross-out lines follow the surrounding theme color instead — a
-    // human correction after the first pass made the whole icon red.
-    it('renders the footer heart as a crossed-out SVG icon, not the broken-heart emoji — heart red, cross-out lines theme-colored', () => {
+    // human correction after the first pass made the whole icon red. The
+    // heart is also filled solid red (fill="currentColor"), not just
+    // outlined, per a later human request.
+    it('renders the footer heart as a crossed-out SVG icon, not the broken-heart emoji — heart red and filled, cross-out lines theme-colored', () => {
         const wrapper = mount(Sidebar);
         const footer = wrapper.findAll('p').find((p) => p.text().includes('Claude'));
         const heart = footer.find('svg');
@@ -74,6 +76,7 @@ describe('Sidebar', () => {
         expect(heart.exists()).toBe(true);
         expect(lines).toHaveLength(2);
         expect(heart.find('path').classes()).toContain('text-red-600');
+        expect(heart.find('path').attributes('fill')).toBe('currentColor');
         expect(heart.classes()).not.toContain('text-red-600');
         lines.forEach((line) => expect(line.classes()).not.toContain('text-red-600'));
     });
@@ -282,13 +285,13 @@ describe('Sidebar', () => {
         await toggle.trigger('click');
 
         expect(document.documentElement.classList.contains('dark')).toBe(true);
-        expect(localStorage.getItem('ekodoc-theme')).toBe('dark');
+        expect(localStorage.getItem('bmad-demo-theme')).toBe('dark');
         expect(toggle.text()).toBe('Thème clair');
 
         await toggle.trigger('click');
 
         expect(document.documentElement.classList.contains('dark')).toBe(false);
-        expect(localStorage.getItem('ekodoc-theme')).toBe('light');
+        expect(localStorage.getItem('bmad-demo-theme')).toBe('light');
         expect(toggle.text()).toBe('Thème sombre');
     });
 });

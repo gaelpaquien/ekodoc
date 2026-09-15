@@ -45,7 +45,7 @@ class ExportDocumentToWordAction
     {
         $document = $data->document;
 
-        $temporaryPath = tempnam(sys_get_temp_dir(), 'ekodoc_word_');
+        $temporaryPath = tempnam(sys_get_temp_dir(), 'bmad_demo_word_');
 
         try {
             $contentHtml = $this->resolveImageSources($document->content_html ?? '', $document->id);

@@ -31,7 +31,7 @@ it('attaches a valid PDF to an already-saved document, extracts its text, and re
     expect($attachment->document_id)->toBe($document->id);
     expect($attachment->original_filename)->toBe('contract.pdf');
     expect($attachment->mime_type)->toBe('application/pdf');
-    expect($attachment->extracted_text)->toContain('EkoDoc sample pdf content');
+    expect($attachment->extracted_text)->toContain('BMAD Démo sample pdf content');
     expect($attachment->extraction_status)->toBe(ExtractionStatus::Completed);
     Storage::disk('local')->assertExists($attachment->file_path);
 });
@@ -72,9 +72,9 @@ it('becomes searchable through the parent document once its text is extracted, w
     test()->post("/documents/{$document->id}/attachments", ['file' => $file]);
 
     $document->refresh();
-    expect($document->attachments_extracted_text)->toContain('EkoDoc sample pdf content');
+    expect($document->attachments_extracted_text)->toContain('BMAD Démo sample pdf content');
 
-    $response = test()->get('/recherche?search=EkoDoc');
+    $response = test()->get('/recherche?search=BMAD');
 
     $response->assertInertia(fn ($page) => $page
         ->has('documents', 1)

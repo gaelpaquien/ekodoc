@@ -44,14 +44,14 @@ it('resyncs the parent document\'s attachments_extracted_text after a detach, dr
     $attachment = attachDocumentFile($document);
 
     $document->refresh();
-    expect($document->attachments_extracted_text)->toContain('EkoDoc sample pdf content');
+    expect($document->attachments_extracted_text)->toContain('BMAD Démo sample pdf content');
 
     test()->delete("/documents/{$document->id}/attachments/{$attachment->id}");
 
     $document->refresh();
     expect($document->attachments_extracted_text)->toBeNull();
 
-    $response = test()->get('/recherche?search=EkoDoc');
+    $response = test()->get('/recherche?search=BMAD');
     $response->assertInertia(fn ($page) => $page->has('documents', 0));
 });
 

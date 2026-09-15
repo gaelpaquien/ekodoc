@@ -4,7 +4,7 @@
 # Date: 2026-08-31T07:10:02.238Z
 
 user_name: Gaël
-project_name: ekodoc
+project_name: bmad-demo
 communication_language: French
 document_output_language: French
 output_folder: "{project-root}/_bmad-output"

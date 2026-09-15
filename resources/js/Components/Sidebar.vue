@@ -5,7 +5,7 @@ import { computed, ref } from 'vue';
 // Theme toggle: logic reused verbatim from the old AppHeader.vue (Boundaries
 // & Constraints, spec-3-2 — "réutilisé tel quel, seulement déplacé/restylé
 // dans la sidebar"). Same isDark ref, same toggleTheme(), same
-// localStorage['ekodoc-theme'] key, same `.dark` class on <html> — the
+// localStorage['bmad-demo-theme'] key, same `.dark` class on <html> — the
 // SSR-safe script in app.blade.php already resolves this before paint.
 const isDark = ref(document.documentElement.classList.contains('dark'));
 
@@ -14,7 +14,7 @@ function toggleTheme() {
     document.documentElement.classList.toggle('dark', isDark.value);
 
     try {
-        localStorage.setItem('ekodoc-theme', isDark.value ? 'dark' : 'light');
+        localStorage.setItem('bmad-demo-theme', isDark.value ? 'dark' : 'light');
     } catch (e) {
         // Private browsing or storage disabled: theme just won't persist across reloads.
     }
@@ -73,7 +73,7 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
         class="sticky top-0 flex h-screen w-sidebar-width shrink-0 flex-col overflow-y-auto border-r border-border bg-surface-alt px-4 py-5 text-foreground"
     >
         <span class="mb-5 block px-2 text-center text-sm font-semibold tracking-tight">
-            EkoDoc - Démo
+            BMAD Démo
         </span>
 
         <hr class="mb-3 border-border" />
@@ -189,7 +189,7 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
         <p class="flex items-center justify-center gap-1 px-3 pt-1 text-center text-sm text-muted">
             Made with
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
-                <path class="text-red-600 dark:text-red-400" stroke="currentColor" d="M12 20.3C12 20.3 4.5 15.1 2.7 10.5 1.3 7 3 3.5 6.5 3.5c2.2 0 4.3 1.3 5.5 3.5 1.2-2.2 3.3-3.5 5.5-3.5 3.5 0 5.2 3.5 3.8 7-1.8 4.6-9.3 9.8-9.3 9.8Z" />
+                <path class="text-red-600 dark:text-red-400" fill="currentColor" stroke="currentColor" d="M12 20.3C12 20.3 4.5 15.1 2.7 10.5 1.3 7 3 3.5 6.5 3.5c2.2 0 4.3 1.3 5.5 3.5 1.2-2.2 3.3-3.5 5.5-3.5 3.5 0 5.2 3.5 3.8 7-1.8 4.6-9.3 9.8-9.3 9.8Z" />
                 <line stroke="currentColor" x1="6" y1="6" x2="18" y2="18" />
                 <line stroke="currentColor" x1="18" y1="6" x2="6" y2="18" />
             </svg>

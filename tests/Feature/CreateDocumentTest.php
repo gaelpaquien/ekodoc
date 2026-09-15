@@ -360,9 +360,9 @@ it('is immediately searchable through its relocated draft attachment\'s extracte
 
     $document = Document::sole();
     $document->refresh();
-    expect($document->attachments_extracted_text)->toContain('EkoDoc sample pdf content');
+    expect($document->attachments_extracted_text)->toContain('BMAD Démo sample pdf content');
 
-    $response = test()->get('/recherche?search=EkoDoc');
+    $response = test()->get('/recherche?search=BMAD');
     $response->assertInertia(fn ($page) => $page
         ->has('documents', 1)
         ->where('documents.0.id', $document->id)

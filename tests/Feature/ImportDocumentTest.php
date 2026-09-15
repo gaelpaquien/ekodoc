@@ -28,7 +28,7 @@ it('imports a valid PDF, extracts its text and redirects to the document page', 
     expect($document->source)->toBe(DocumentSource::Imported);
     expect($document->title)->toBe('contract.pdf');
     expect($document->file_path)->toBe("documents/{$document->id}/contract.pdf");
-    expect($document->extracted_text)->toContain('EkoDoc sample pdf content');
+    expect($document->extracted_text)->toContain('BMAD Démo sample pdf content');
     expect($document->extraction_status)->toBe(ExtractionStatus::Completed);
     Storage::disk('local')->assertExists($document->file_path);
 });
@@ -41,7 +41,7 @@ it('imports a valid docx and extracts its text via phpword', function () {
     $document = Document::sole();
 
     expect($document->source)->toBe(DocumentSource::Imported);
-    expect($document->extracted_text)->toContain('EkoDoc sample docx content');
+    expect($document->extracted_text)->toContain('BMAD Démo sample docx content');
     Storage::disk('local')->assertExists($document->file_path);
 });
 
@@ -53,7 +53,7 @@ it('imports a valid xlsx and extracts its text via phpspreadsheet', function () 
     $document = Document::sole();
 
     expect($document->source)->toBe(DocumentSource::Imported);
-    expect($document->extracted_text)->toContain('EkoDoc sample xlsx content');
+    expect($document->extracted_text)->toContain('BMAD Démo sample xlsx content');
     Storage::disk('local')->assertExists($document->file_path);
 });
 
@@ -99,7 +99,7 @@ it('extracts text based on the real file content even when the filename extensio
     $document = Document::sole();
 
     $response->assertRedirect("/documents/{$document->id}");
-    expect($document->extracted_text)->toContain('EkoDoc sample docx content');
+    expect($document->extracted_text)->toContain('BMAD Démo sample docx content');
     Storage::disk('local')->assertExists($document->file_path);
 });
 
