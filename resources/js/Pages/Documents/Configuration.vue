@@ -266,7 +266,7 @@ function trapDeleteDialogFocus(event) {
                         type="text"
                         placeholder="Nom du tag"
                         maxlength="255"
-                        class="w-full max-w-xs rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                        class="w-full max-w-xs rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:border-primary"
                         :aria-invalid="!!createNameError"
                         :disabled="createForm.processing"
                     >
@@ -307,7 +307,7 @@ function trapDeleteDialogFocus(event) {
                                     v-model="renameForm.name"
                                     type="text"
                                     maxlength="255"
-                                    class="w-full max-w-xs rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                                    class="w-full max-w-xs rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:border-primary"
                                     :aria-invalid="!!renameNameError"
                                     :disabled="renameForm.processing"
                                     @keydown.escape="cancelRename"

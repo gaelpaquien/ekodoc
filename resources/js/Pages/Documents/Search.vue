@@ -199,7 +199,7 @@ function formatDate(dateString) {
                     v-model="searchTerm"
                     type="search"
                     placeholder="Rechercher un document (appuyez sur / pour y accéder)"
-                    class="w-full rounded-md border border-border bg-background px-4 py-2 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                    class="w-full rounded-md border border-border bg-background px-4 py-2 text-sm text-foreground focus-visible:border-primary"
                     aria-label="Rechercher un document"
                 >
             </div>

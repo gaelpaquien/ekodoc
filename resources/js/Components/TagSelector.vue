@@ -189,7 +189,7 @@ function onKeydown(event) {
                     ? `${instanceId}-option-${filteredTags[highlightedIndex].id}`
                     : undefined"
                 placeholder="Rechercher un tag…"
-                class="w-full rounded-sm border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                class="w-full rounded-sm border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:border-primary"
                 :class="disabled ? 'cursor-not-allowed opacity-50' : ''"
                 :readonly="disabled"
                 :aria-disabled="disabled"

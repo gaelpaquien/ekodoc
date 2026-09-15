@@ -40,9 +40,11 @@ describe('Documents/Index', () => {
         expect(wrapper.text()).not.toContain('Importer');
     });
 
-    // I/O matrix: "Ligne de document" — badge + title + 2 TagChip + date,
-    // whole row clickable to the Document Detail.
-    it('renders a document-row with the type badge, title, its tags and the date, the whole row linking to the document', () => {
+    // I/O matrix: "Ligne de document" — title + 2 TagChip + date, whole row
+    // clickable to the Document Detail. No type badge (spec-corrections-
+    // documents-ui, fix #1): DocumentTypeBadge is no longer used in this
+    // listing, unlike Search.vue/Show.vue which still render it.
+    it('renders a document-row with the title, its tags and the date, without a type badge, the whole row linking to the document', () => {
         const wrapper = mount(Index, {
             props: {
                 documents: {
@@ -65,7 +67,7 @@ describe('Documents/Index', () => {
         const row = wrapper.find('a[href="/documents/42"]');
 
         expect(row.exists()).toBe(true);
-        expect(row.text()).toContain('PDF');
+        expect(row.text()).not.toContain('PDF');
         expect(row.text()).toContain('Contrat prestataire');
         expect(row.text()).toContain('Finance');
         expect(row.text()).toContain('RH');

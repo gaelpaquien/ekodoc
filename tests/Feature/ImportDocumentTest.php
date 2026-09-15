@@ -4,6 +4,7 @@ use App\Enums\DocumentSource;
 use App\Enums\ExtractionStatus;
 use App\Jobs\ExtractDocumentTextJob;
 use App\Models\Document;
+use App\Models\Tag;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -17,20 +18,37 @@ function fixtureContents(string $name): string
     return file_get_contents(__DIR__.'/../Fixtures/'.$name);
 }
 
-it('imports a valid PDF, extracts its text and redirects to the document page', function () {
+it('imports a valid PDF, extracts its text and redirects back to the import review step', function () {
     $file = UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf'));
 
-    $response = $this->post('/documents', ['file' => $file]);
+    // `store()` now redirects via back() (Code Map,
+    // spec-corrections-documents-ui) rather than a fixed route — mirrors
+    // how a real browser navigation from /documents/import carries its own
+    // Referer header; the test client needs the same simulated here via
+    // from(), otherwise back() falls through to the app root.
+    $response = $this->from('/documents/import')->post('/documents', ['file' => $file]);
 
     $document = Document::sole();
 
-    $response->assertRedirect("/documents/{$document->id}");
+    $response->assertRedirect('/documents/import');
     expect($document->source)->toBe(DocumentSource::Imported);
     expect($document->title)->toBe('contract.pdf');
     expect($document->file_path)->toBe("documents/{$document->id}/contract.pdf");
     expect($document->extracted_text)->toContain('BMAD Démo sample pdf content');
     expect($document->extraction_status)->toBe(ExtractionStatus::Completed);
     Storage::disk('local')->assertExists($document->file_path);
+});
+
+it('redirects to the import page even with no previous URL in session (code review fix: back() fallback)', function () {
+    // No ->from() here, unlike the test above — simulates a session with no
+    // prior GET to /documents/import (e.g. a fresh session/direct POST),
+    // where back() would otherwise fall through to the app root and lose
+    // the flashed uploadedDocument, so step 2 would never appear.
+    $file = UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf'));
+
+    $response = $this->post('/documents', ['file' => $file]);
+
+    $response->assertRedirect('/documents/import');
 });
 
 it('imports a valid docx and extracts its text via phpword', function () {
@@ -94,11 +112,11 @@ it('extracts text based on the real file content even when the filename extensio
         ->createWithContent('mystery-file.bin', fixtureContents('sample.docx'))
         ->mimeType('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
 
-    $response = $this->post('/documents', ['file' => $file]);
+    $response = $this->from('/documents/import')->post('/documents', ['file' => $file]);
 
     $document = Document::sole();
 
-    $response->assertRedirect("/documents/{$document->id}");
+    $response->assertRedirect('/documents/import');
     expect($document->extracted_text)->toContain('BMAD Démo sample docx content');
     Storage::disk('local')->assertExists($document->file_path);
 });
@@ -106,11 +124,11 @@ it('extracts text based on the real file content even when the filename extensio
 it('keeps the import when text extraction fails on an otherwise valid, unreadable file', function () {
     $file = UploadedFile::fake()->createWithContent('scanned.pdf', fixtureContents('sample-corrupt.pdf'));
 
-    $response = $this->post('/documents', ['file' => $file]);
+    $response = $this->from('/documents/import')->post('/documents', ['file' => $file]);
 
     $document = Document::sole();
 
-    $response->assertRedirect("/documents/{$document->id}");
+    $response->assertRedirect('/documents/import');
     expect($document->source)->toBe(DocumentSource::Imported);
     expect($document->extracted_text)->toBeNull();
     expect($document->extraction_status)->toBe(ExtractionStatus::Failed);
@@ -153,11 +171,11 @@ it('returns immediately with the document pending extraction, dispatching the jo
 
     $file = UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf'));
 
-    $response = $this->post('/documents', ['file' => $file]);
+    $response = $this->from('/documents/import')->post('/documents', ['file' => $file]);
 
     $document = Document::sole();
 
-    $response->assertRedirect("/documents/{$document->id}");
+    $response->assertRedirect('/documents/import');
     expect($document->extraction_status)->toBe(ExtractionStatus::Pending);
     expect($document->extracted_text)->toBeNull();
     Storage::disk('local')->assertExists($document->file_path);
@@ -205,4 +223,33 @@ it('lists previously imported documents on the index page', function () {
         ->where('documents.data.0.id', $document->id)
         ->where('documents.data.0.title', 'contract.pdf')
     );
+});
+
+// --- Étape 2 : revue (Supprimer / Enregistrer, spec-corrections-documents-ui) ----
+
+it('deletes the imported document and redirects back to the import page when ?redirect=import is passed', function () {
+    $file = UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf'));
+    $this->post('/documents', ['file' => $file]);
+
+    $document = Document::sole();
+
+    $response = $this->delete("/documents/{$document->id}?redirect=import");
+
+    $response->assertRedirect('/documents/import');
+    expect(Document::find($document->id))->toBeNull();
+});
+
+it('syncs tags and redirects to the document page when ?redirect=show is passed', function () {
+    $file = UploadedFile::fake()->createWithContent('contract.pdf', fixtureContents('sample.pdf'));
+    $this->post('/documents', ['file' => $file]);
+
+    $document = Document::sole();
+    $tag = Tag::factory()->create();
+
+    $response = $this->patch("/documents/{$document->id}/tags?redirect=show", [
+        'tag_ids' => [$tag->id],
+    ]);
+
+    $response->assertRedirect("/documents/{$document->id}");
+    expect($document->fresh()->tags->pluck('id')->all())->toBe([$tag->id]);
 });

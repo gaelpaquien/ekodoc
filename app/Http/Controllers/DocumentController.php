@@ -197,8 +197,16 @@ class DocumentController extends Controller
      * an orphaned Document row committed with no way to roll it back.
      *
      * Reached from the dedicated `/documents/import` page
-     * (spec-import-document-page) — this endpoint/action pair is unchanged
-     * by that migration away from the former `ImportModal.vue` popup.
+     * (spec-import-document-page). Since spec-corrections-documents-ui, the
+     * page itself is a 2-step flow: this only ever runs step 1 (upload) —
+     * `tag_ids` is never actually sent by Import.vue's step-1 form anymore,
+     * but `SyncDocumentTagsAction` stays here (harmless no-op sync when
+     * empty) rather than removed, since nothing in this story asked for
+     * that. Redirects back to the import page itself with the freshly
+     * created document flashed, instead of jumping straight to its detail
+     * page — the review step (Supprimer/tags/Enregistrer) reads it from
+     * `flash.uploadedDocument`, same `back()->with()` pattern as
+     * storeEditorImage()'s `uploadedImage` (AD-13).
      */
     public function store(ImportDocumentRequest $request, ImportDocumentAction $import, SyncDocumentTagsAction $syncTags): RedirectResponse
     {
@@ -215,7 +223,11 @@ class DocumentController extends Controller
             return $document;
         });
 
-        return to_route('documents.show', $document);
+        return back(fallback: route('documents.import'))->with('uploadedDocument', [
+            'id' => $document->id,
+            'title' => $document->title,
+            'mime_type' => $document->mime_type,
+        ]);
     }
 
     /**
@@ -431,10 +443,16 @@ class DocumentController extends Controller
 
     /**
      * Sole route through which a document's tags are reassigned after
-     * creation from the Document Detail page — always delegates to
-     * SyncDocumentTagsAction, never writes `document_tag` itself. Always a
-     * full `sync()`, never `attach()`/`detach()` incrementally (Boundaries
-     * & Constraints, spec-3-1).
+     * creation — always delegates to SyncDocumentTagsAction, never writes
+     * `document_tag` itself. Always a full `sync()`, never `attach()`/
+     * `detach()` incrementally (Boundaries & Constraints, spec-3-1).
+     *
+     * Shared by two callers distinguished only by `?redirect=` (Design
+     * Notes, spec-corrections-documents-ui): the Document Detail page's
+     * own reassignment (no `redirect` query param — `back()`, unchanged),
+     * and Import.vue's step-2 "Enregistrer" (`redirect=show`), which
+     * finalizes the review step by sending the user straight to the
+     * document's own page rather than back to the import form.
      */
     public function updateTags(SyncDocumentTagsRequest $request, Document $document, SyncDocumentTagsAction $action): RedirectResponse
     {
@@ -442,6 +460,10 @@ class DocumentController extends Controller
             document: $document,
             tagIds: $request->validated('tag_ids', []),
         ));
+
+        if ($request->query('redirect') === 'show') {
+            return to_route('documents.show', $document);
+        }
 
         return back();
     }
@@ -451,12 +473,23 @@ class DocumentController extends Controller
      * always delegates to DeleteDocumentAction, never removes files/index
      * entries/the row itself directly. Confirmation happens client-side
      * before this request is ever sent (UX-DR21); no undo, no SoftDeletes.
+     *
+     * Shared by two callers distinguished only by `?redirect=` (Design
+     * Notes, spec-corrections-documents-ui): the Document Detail page's own
+     * delete (no `redirect` query param — `documents.index`, unchanged),
+     * and Import.vue's step-2 "Supprimer" (`redirect=import`), which sends
+     * the user back to the import page's step-1 dropzone to start over
+     * rather than to the library.
      */
-    public function destroy(Document $document, DeleteDocumentAction $action): RedirectResponse
+    public function destroy(Request $request, Document $document, DeleteDocumentAction $action): RedirectResponse
     {
         $action(new DeleteDocumentData(
             document: $document,
         ));
+
+        if ($request->query('redirect') === 'import') {
+            return to_route('documents.import');
+        }
 
         return to_route('documents.index');
     }

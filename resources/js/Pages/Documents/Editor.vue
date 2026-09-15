@@ -538,7 +538,7 @@ function submit() {
                     v-model="form.title"
                     type="text"
                     placeholder="Titre du document"
-                    class="w-full rounded-sm border border-border bg-background px-3 py-2 text-lg font-semibold text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
+                    class="w-full rounded-sm border border-border bg-background px-3 py-2 text-lg font-semibold text-foreground focus-visible:border-primary"
                 >
                 <p v-if="form.errors.title" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
                     {{ form.errors.title }}
@@ -725,7 +725,7 @@ function submit() {
                         v-model="pendingImageAlt"
                         type="text"
                         placeholder="Décrivez cette image"
-                        class="w-full rounded-sm border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-background"
+                        class="w-full rounded-sm border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50"
                         :disabled="isUploadingImage"
                         @keydown.enter.prevent="uploadPendingImage"
                     >

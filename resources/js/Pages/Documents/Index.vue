@@ -1,7 +1,6 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import DocumentTypeBadge from '@/Components/DocumentTypeBadge.vue';
 import TagChip from '@/Components/TagChip.vue';
 
 defineProps({
@@ -46,7 +45,6 @@ function formatDate(dateString) {
                                 :href="`/documents/${document.id}`"
                                 class="flex items-center gap-3 border-b border-border px-2 py-3 transition hover:rounded-sm hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
                             >
-                                <DocumentTypeBadge class="shrink-0" :mime-type="document.mime_type" :source="document.source" />
                                 <span class="min-w-0 flex-1 truncate font-medium text-foreground">
                                     {{ document.title }}
                                 </span>
