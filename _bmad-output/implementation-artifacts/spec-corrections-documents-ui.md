@@ -141,3 +141,21 @@ Le document existe déjà en base dès l'étape 1 (comportement d'import inchang
 
 - Listing sans étiquette de type.
   [`Index.spec.js:70`](../../resources/js/Pages/Documents/__tests__/Index.spec.js#L70)
+
+## Post-Approval Adjustments
+
+<!-- Ce spec a le statut `done` et son <frozen-after-approval> n'a pas été rouvert : l'ajustement
+     ci-dessous a été fait en itérant directement avec l'humain après la première implémentation,
+     pas via une boucle de revue step-04 — d'où cette note plutôt qu'une entrée dans Spec Change Log
+     (réservé aux boucles bad_spec/intent_gap). Le Code Map ci-dessus décrit l'état au moment de
+     l'approbation initiale (commit `81d5484`) et n'a pas été réécrit ; cette section documente ce qui
+     a changé depuis, pour qu'un futur lecteur ne se fie pas au Code Map seul.
+-->
+
+Commit `38f9079` (retour humain sur le fix #2 du commit `81d5484` ci-dessus) :
+
+- **Le focus lime ne s'affichait pas au clic** : `focus-visible:` ne matche que le focus clavier dans la plupart des navigateurs (heuristique native) — un clic souris dans un champ ne déclenchait donc aucune bordure lime, seul l'outline natif du navigateur (variable selon le thème/OS, perçu comme "noir/blanc") restait visible. Remplacé par `focus:` sur les 6 champs concernés, qui réagit à n'importe quel focus.
+- **Incohérence de rayon/padding entre champs** : `rounded-sm` (TagSelector, Editor) vs `rounded-md` (Configuration, Search) et `px-3` vs `px-4` (Search) — les 6 champs avaient dérivé indépendamment faute de style partagé.
+- **Extraction d'un composant partagé** : `resources/js/Components/TextInput.vue` centralise désormais le style (rayon `rounded-md`, `px-3 py-2`, bordure, `focus:border-primary`) pour les 6 champs (`TagSelector`, `Configuration` ×2, `Search`, `Editor` ×2), au lieu de classes Tailwind dupliquées par fichier. Deux échappatoires explicites plutôt qu'une classe `class=` concurrente sur la même propriété (les classes Tailwind pour une même propriété — ex. `text-sm` vs `text-lg` — ne s'écrasent pas de façon fiable selon l'ordre dans l'attribut `class`, seulement selon l'ordre du CSS généré) : la prop `size` (le titre de l'éditeur reste en `text-lg font-semibold`) et la prop `type` (`search` pour la recherche). Chaque appelant gardait une ref template pour appeler `.focus()`/`.select()` dessus (renommage de tag) — le composant les réexpose explicitement via `defineExpose`, puisqu'un `ref` sur un composant n'expose rien par défaut.
+
+Tests : `resources/js/Components/__tests__/TextInput.spec.js` ajouté (5 tests) ; suite complète à 124/124 au commit `38f9079`.
