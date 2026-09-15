@@ -13,6 +13,12 @@ import { ref } from 'vue';
 // only matches keyboard-driven focus in most browsers, so clicking into a
 // field with a mouse showed no lime border at all — a real data-entry
 // field needs to react to any focus, not only Tab (code review feedback).
+//
+// `focus:outline-none` is just as deliberate: nothing here ever set
+// `outline-none`, so the browser's own native focus ring (its color/shape
+// is OS/browser-controlled, not ours — often a light/white halo in dark
+// mode) kept rendering on top of/alongside the lime border and visually
+// drowned it out. The lime border is the only focus indicator now.
 const model = defineModel({ type: [String, Number], default: '' });
 
 const props = defineProps({
@@ -49,6 +55,6 @@ defineExpose({
         ref="inputEl"
         v-model="model"
         :type="props.type"
-        :class="[props.size, 'w-full rounded-md border border-border bg-background px-3 py-2 text-foreground focus:border-primary disabled:cursor-not-allowed disabled:opacity-50']"
+        :class="[props.size, 'w-full rounded-md border border-border bg-background px-3 py-2 text-foreground focus:border-primary focus:outline-none disabled:cursor-not-allowed disabled:opacity-50']"
     >
 </template>
