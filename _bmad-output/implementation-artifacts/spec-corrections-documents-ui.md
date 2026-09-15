@@ -174,3 +174,10 @@ Commit `791f7b9` (3ᵉ correction sur retour humain, portant sur l'épaisseur/ha
 - **`TagSelector` plafonné à `max-w-xs`** dans l'éditeur (`Editor.vue`), le filtre "Filtrer par tag" de la page Recherche (`Search.vue`) et la ligne "Tags :" de la fiche document (`Show.vue`) — retiré aux 3 endroits (décision humaine explicite : passer les 4 usages de `TagSelector` en pleine largeur plutôt que seulement celui de l'éditeur, `Import.vue` l'étant déjà).
 
 Tests : suite complète à 124/124 au commit `791f7b9`. Vérification visuelle toujours non effectuée (pas d'outil navigateur) — à confirmer par l'humain après rechargement complet.
+
+Commit `f220967` (4ᵉ correction sur retour humain — abandon du lime, et un libellé en double sur Recherche/fiche document) :
+
+- **Lime abandonné au focus** : jugé trop peu contrasté/visible dans les deux thèmes. `focus:border-primary` → `focus:border-foreground` sur `TextInput.vue` — `--color-foreground` est foncé en thème clair et clair en thème sombre (même token que le texte), donc toujours fortement contrasté sur `bg-background`, sans dépendre d'une teinte fixe.
+- **Libellé "Tags" en double** : la page Recherche affichait le `<legend>` "Filtrer par tag" du filtre directement suivi du label interne "Tags" de `TagSelector` ; la fiche document affichait de même son `<dt>` "Tags :" suivi du même label interne. Ajout d'une prop `showLabel` (défaut `true`) sur `TagSelector.vue` — repli sur `aria-label="Tags"` sur le champ quand `false`, pour qu'il reste nommé pour un lecteur d'écran. Mise à `false` sur ces deux usages (`Search.vue`, `Show.vue`) ; `Editor.vue`/`Import.vue`, qui n'ont pas de label externe, gardent le défaut.
+
+Tests : `TagSelector.spec.js` complété (2 tests `showLabel`) ; suite complète à 126/126 au commit `f220967`. Vérification visuelle toujours non effectuée (pas d'outil navigateur).
