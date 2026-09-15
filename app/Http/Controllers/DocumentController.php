@@ -59,33 +59,23 @@ class DocumentController extends Controller
     /**
      * Library entry point: renders one card per document (type badge,
      * title, tags, date), sorted most recent first and paginated 20 per
-     * page. Sole point of entry for the browse/filter query — tag/type
-     * filters (`?tag_id[]=`, `?type[]=`, Story 1.7/3.1) converge here
-     * (AD-8) through the same applyFilters() the dedicated Recherche
-     * surface also uses (search(), spec-3-4) — never a second/divergent
-     * query path (Boundaries & Constraints, spec-1-7/spec-3-1).
+     * page. No filtering here (spec-nettoyage-sidebar-et-page-documents) —
+     * filtering by tag now lives solely on the dedicated Recherche surface
+     * (search()), which still shares applyFilters()/tagIdsFromQuery() with
+     * this class.
      *
-     * Fulltext search no longer lives here (moved to search(), spec-3-4):
-     * this method never touches Scout.
+     * Fulltext search never lived here (that's search(), spec-3-4): this
+     * method never touches Scout.
      */
-    public function index(Request $request): Response
+    public function index(): Response
     {
-        $tagIds = $this->tagIdsFromQuery($request);
-        $types = $this->typesFromQuery($request);
-
         $columns = ['id', 'title', 'source', 'mime_type', 'created_at'];
 
-        $documents = $this->applyFilters(Document::query(), $tagIds, $types)
-            ->with('tags:id,name')->latest()->paginate(20, $columns)
-            // Pagination links otherwise carry only `?page=N` — an active
-            // `tag_id[]`/`type[]` filter would silently drop off page 2+
-            // (code review finding, spec-3-4).
-            ->withQueryString();
+        $documents = Document::query()
+            ->with('tags:id,name')->latest()->paginate(20, $columns);
 
         return Inertia::render('Documents/Index', [
             'documents' => $documents,
-            'tagFilters' => $tagIds,
-            'typeFilters' => $types,
         ]);
     }
 
@@ -100,8 +90,9 @@ class DocumentController extends Controller
      * A blank (post-trim) term always short-circuits to `documents => []`,
      * even with a tag selected — Recherche never falls back to showing the
      * whole library (Boundaries & Constraints, AC2). Reuses applyFilters()/
-     * tagIdsFromQuery() unmodified (AD-8) — the only other caller besides
-     * index().
+     * tagIdsFromQuery() unmodified (AD-8) — this is now their sole caller,
+     * index() having dropped all filtering (spec-nettoyage-sidebar-et-page-
+     * documents).
      */
     public function search(Request $request): Response
     {
@@ -130,16 +121,18 @@ class DocumentController extends Controller
     }
 
     /**
-     * Sole filter-application point, called identically by both `index()`
-     * branches (plain `Document::query()` and the Scout query callback) —
-     * no divergence between the search and non-search paths (AD-8,
-     * Design Notes spec-1-7), and the only place either filter is ever
+     * Sole filter-application point — the only place either filter is ever
      * applied (Boundaries & Constraints, spec-3-1: never a second/separate
-     * `whereHas` branch elsewhere). ET between the tag and type groups, OU
-     * within each group: `whereHas('tags', ...)` narrows to documents
-     * carrying at least one of the selected tags when any is selected, and
-     * a single `where()` closure ORs together the recognized-mime types
-     * plus `source = created` when selected.
+     * `whereHas` branch elsewhere). Its only remaining call site is
+     * `search()`'s Scout query callback: `index()` no longer filters at all
+     * (spec-nettoyage-sidebar-et-page-documents), so `$types` only ever
+     * arrives empty in practice now (search() always passes `[]`) — the
+     * parameter and its handling stay since `search()` still calls through
+     * this shared signature. ET between the tag and type groups, OU within
+     * each group: `whereHas('tags', ...)` narrows to documents carrying at
+     * least one of the selected tags when any is selected, and a single
+     * `where()` closure ORs together the recognized-mime types plus
+     * `source = created` when selected.
      */
     private function applyFilters(Builder $query, array $tagIds, array $types): Builder
     {
@@ -191,25 +184,6 @@ class DocumentController extends Controller
         );
 
         return array_values(array_unique(array_filter($ids, static fn ($value) => $value !== false)));
-    }
-
-    /**
-     * `type[]` filtered down to the four recognized values (Boundaries &
-     * Constraints, spec-1-7: no fifth type) — anything else is silently
-     * dropped, same tolerance as tagIdsFromQuery().
-     */
-    private function typesFromQuery(Request $request): array
-    {
-        $raw = $request->query('type', []);
-
-        if (! is_array($raw)) {
-            return [];
-        }
-
-        $allowedTypes = [...array_keys(DocumentMimeTypes::TYPE_TO_MIME), 'created'];
-        $stringValues = array_filter($raw, 'is_string');
-
-        return array_values(array_intersect(array_unique($stringValues), $allowedTypes));
     }
 
     /**

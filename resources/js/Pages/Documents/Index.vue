@@ -1,132 +1,15 @@
 <script setup>
-import { Link, router, usePage } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import DocumentTypeBadge from '@/Components/DocumentTypeBadge.vue';
-import TagSelector from '@/Components/TagSelector.vue';
 import TagChip from '@/Components/TagChip.vue';
 
-const props = defineProps({
+defineProps({
     documents: {
         type: Object,
         default: () => ({ data: [], links: [] }),
     },
-    tagFilters: {
-        type: Array,
-        default: () => [],
-    },
-    typeFilters: {
-        type: Array,
-        default: () => [],
-    },
 });
-
-const page = usePage();
-const allTags = computed(() => page.props.tags ?? []);
-
-// Fixed set of four types (Boundaries & Constraints, spec-1-7: no fifth
-// type) — value matches the `type[]` query value the server recognizes
-// (DocumentMimeTypes::TYPE_TO_MIME + `created`). The pdf/word/excel entries
-// come from the shared `documentTypeOptions` Inertia prop (single source of
-// truth, Epic 1/2 retrospectives action item 3); `created` stays a local
-// entry since it filters on `source`, not a mime type, and has no
-// server-side mime-type counterpart to derive it from.
-const TYPE_OPTIONS = computed(() => [
-    ...(page.props.documentTypeOptions ?? []),
-    { value: 'created', label: 'Créé' },
-]);
-
-const selectedTagIds = ref([...props.tagFilters]);
-const selectedTypes = ref([...props.typeFilters]);
-
-// Set right before a programmatic (non-typed) write to the filter
-// selections so the watcher below can tell it apart from an actual user
-// edit and skip re-navigating — otherwise syncing from server props (e.g. a
-// browser back/forward restoring a different `?tag_id[]=`/`?type[]=`) would
-// itself trigger a redundant `router.get` that clobbers the history entry
-// navigation just restored.
-let isSyncingFiltersFromProps = false;
-
-// Keeps the local filter selections in sync when the server-provided props
-// change from outside this component's own selection (e.g. browser
-// back/forward navigation).
-watch(
-    () => props.tagFilters,
-    (value) => {
-        isSyncingFiltersFromProps = true;
-        selectedTagIds.value = [...value];
-    },
-);
-
-watch(
-    () => props.typeFilters,
-    (value) => {
-        isSyncingFiltersFromProps = true;
-        selectedTypes.value = [...value];
-    },
-);
-
-// Filters are a discrete selection, not free typing — no debounce,
-// navigate immediately (Design Notes, spec-1-7). Filter changes always
-// return to page 1 — a page number left over from a previous, wider result
-// set could otherwise point past the end of a narrower one.
-function navigate() {
-    const params = {};
-
-    if (selectedTagIds.value.length > 0) {
-        params.tag_id = selectedTagIds.value;
-    }
-
-    if (selectedTypes.value.length > 0) {
-        params.type = selectedTypes.value;
-    }
-
-    router.get(
-        '/',
-        params,
-        { preserveState: true, replace: true, only: ['documents', 'tagFilters', 'typeFilters', 'tags'] },
-    );
-}
-
-watch([selectedTagIds, selectedTypes], () => {
-    if (isSyncingFiltersFromProps) {
-        isSyncingFiltersFromProps = false;
-        return;
-    }
-
-    navigate();
-});
-
-const hasActiveFilters = computed(
-    () => selectedTagIds.value.length > 0 || selectedTypes.value.length > 0,
-);
-
-function clearFilters() {
-    selectedTagIds.value = [];
-    selectedTypes.value = [];
-}
-
-function toggleType(type, checked) {
-    selectedTypes.value = checked
-        ? [...selectedTypes.value, type]
-        : selectedTypes.value.filter((value) => value !== type);
-}
-
-function removeTagFilter(tagId) {
-    selectedTagIds.value = selectedTagIds.value.filter((id) => id !== tagId);
-}
-
-function removeTypeFilter(type) {
-    selectedTypes.value = selectedTypes.value.filter((value) => value !== type);
-}
-
-function tagName(tagId) {
-    return allTags.value.find((tag) => tag.id === tagId)?.name ?? 'Tag';
-}
-
-function typeLabel(type) {
-    return TYPE_OPTIONS.value.find((option) => option.value === type)?.label ?? type;
-}
 
 function formatDate(dateString) {
     if (!dateString) {
@@ -145,89 +28,12 @@ function formatDate(dateString) {
         <div class="mx-auto max-w-3xl px-4 py-10">
             <div class="mb-6">
                 <h1 class="text-2xl font-semibold text-foreground">
-                    Bibliothèque de documents
+                    Documents
                 </h1>
             </div>
 
-            <div class="mb-6 flex flex-col gap-3 rounded-lg border border-border p-4">
-                <fieldset class="max-w-xs">
-                    <legend class="mb-2 text-sm font-medium text-foreground">
-                        Filtrer par tag
-                    </legend>
-                    <TagSelector v-model="selectedTagIds" />
-                </fieldset>
-
-                <fieldset>
-                    <legend class="mb-2 text-sm font-medium text-foreground">
-                        Type
-                    </legend>
-                    <div class="flex flex-wrap gap-x-4 gap-y-2">
-                        <label
-                            v-for="option in TYPE_OPTIONS"
-                            :key="option.value"
-                            class="flex items-center gap-2 text-sm text-foreground"
-                        >
-                            <input
-                                type="checkbox"
-                                :value="option.value"
-                                :checked="selectedTypes.includes(option.value)"
-                                class="rounded-sm border-border text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                                @change="toggleType(option.value, $event.target.checked)"
-                            >
-                            {{ option.label }}
-                        </label>
-                    </div>
-                </fieldset>
-
-                <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2 pt-1">
-                    <span class="text-sm text-muted">Filtres actifs :</span>
-                    <button
-                        v-for="tagId in selectedTagIds"
-                        :key="`tag-${tagId}`"
-                        type="button"
-                        class="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                        :aria-label="`Retirer le filtre tag ${tagName(tagId)}`"
-                        @click="removeTagFilter(tagId)"
-                    >
-                        {{ tagName(tagId) }}
-                        <span aria-hidden="true">×</span>
-                    </button>
-                    <button
-                        v-for="type in selectedTypes"
-                        :key="`type-${type}`"
-                        type="button"
-                        class="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                        :aria-label="`Retirer le filtre type ${typeLabel(type)}`"
-                        @click="removeTypeFilter(type)"
-                    >
-                        {{ typeLabel(type) }}
-                        <span aria-hidden="true">×</span>
-                    </button>
-                    <button
-                        type="button"
-                        class="text-xs font-medium text-muted underline hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                        @click="clearFilters"
-                    >
-                        Retirer tous les filtres
-                    </button>
-                </div>
-            </div>
-
             <div aria-live="polite" aria-atomic="true">
-                <div v-if="documents.data.length === 0 && hasActiveFilters" class="flex flex-col items-center gap-4 py-16 text-center">
-                    <p class="text-muted">
-                        Aucun document ne correspond à ces filtres.
-                    </p>
-                    <button
-                        type="button"
-                        class="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary focus-visible:ring-2 focus-visible:ring-foreground dark:focus-visible:ring-background"
-                        @click="clearFilters"
-                    >
-                        Retirer les filtres
-                    </button>
-                </div>
-
-                <div v-else-if="documents.data.length === 0" class="py-16 text-center">
+                <div v-if="documents.data.length === 0" class="py-16 text-center">
                     <p class="text-muted">
                         Aucun document pour l'instant.
                     </p>

@@ -193,3 +193,65 @@ it('combines a tag filter with an active search term through the same query entr
     expect($wrongTag)->not->toBeNull();
     expect($wrongSearch)->not->toBeNull();
 });
+
+// Ported from the now-deleted tests/Feature/FilterDocumentsTest.php (spec-
+// nettoyage-sidebar-et-page-documents removed index()'s own filtering, which
+// left applyFilters()/tagIdsFromQuery()'s multi-tag handling with no
+// coverage) — adapted to search() (`/recherche`), the only surviving caller:
+// a shared 'facture' search term matches every document below regardless of
+// its tags, isolating these assertions to the tag-filter logic alone.
+it('ORs multiple selected tags within the tag group', function () {
+    $tagA = Tag::factory()->create();
+    $tagB = Tag::factory()->create();
+    $tagC = Tag::factory()->create();
+
+    $inA = Document::factory()->create(['extracted_text' => 'Facture A']);
+    $inA->tags()->sync([$tagA->id]);
+    $inB = Document::factory()->create(['extracted_text' => 'Facture B']);
+    $inB->tags()->sync([$tagB->id]);
+    $inC = Document::factory()->create(['extracted_text' => 'Facture C']);
+    $inC->tags()->sync([$tagC->id]);
+
+    $response = $this->get("/recherche?search=facture&tag_id[]={$tagA->id}&tag_id[]={$tagB->id}");
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->component('Documents/Search')
+        ->has('documents', 2)
+        ->where('documents', fn ($documents) => collect($documents)->pluck('id')->sort()->values()->all()
+            === collect([$inA->id, $inB->id])->sort()->values()->all())
+    );
+
+    expect($inC)->not->toBeNull();
+});
+
+it('matches a document tagged with several of the selected tags only once', function () {
+    $tagA = Tag::factory()->create();
+    $tagB = Tag::factory()->create();
+
+    $document = Document::factory()->create(['extracted_text' => 'Facture unique']);
+    $document->tags()->sync([$tagA->id, $tagB->id]);
+
+    $response = $this->get("/recherche?search=facture&tag_id[]={$tagA->id}&tag_id[]={$tagB->id}");
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->component('Documents/Search')
+        ->has('documents', 1)
+        ->where('documents.0.id', $document->id)
+    );
+});
+
+it('drops a malformed tag_id value instead of erroring', function () {
+    $document = Document::factory()->create(['extracted_text' => 'Facture de test']);
+
+    $response = $this->get('/recherche?search=facture&tag_id[]=abc');
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->component('Documents/Search')
+        ->where('tagFilters', [])
+        ->has('documents', 1)
+        ->where('documents.0.id', $document->id)
+    );
+});

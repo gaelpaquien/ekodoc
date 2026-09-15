@@ -2,6 +2,29 @@
 
 use App\Enums\DocumentSource;
 use App\Models\Document;
+use App\Models\Tag;
+
+// index() no longer filters (spec-nettoyage-sidebar-et-page-documents):
+// a `?tag_id[]=` query param has no effect on it any more — a document
+// carrying none of the referenced tags still shows up alongside one that
+// does, unlike the dedicated Recherche surface where tag_id[] still filters.
+it('ignores a tag_id query param on the library index, listing every document regardless of tags', function () {
+    $tag = Tag::factory()->create();
+
+    $tagged = Document::factory()->create();
+    $tagged->tags()->sync([$tag->id]);
+    $untagged = Document::factory()->create();
+
+    $response = $this->get("/?tag_id[]={$tag->id}");
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->component('Documents/Index')
+        ->has('documents.data', 2)
+        ->where('documents.data', fn ($documents) => collect($documents)->pluck('id')->sort()->values()->all()
+            === collect([$tagged->id, $untagged->id])->sort()->values()->all())
+    );
+});
 
 it('renders the library with no documents and an empty documents prop', function () {
     $response = $this->get('/');

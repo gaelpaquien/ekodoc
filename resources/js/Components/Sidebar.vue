@@ -183,17 +183,5 @@ const isLibraryActive = computed(() => LIBRARY_SURFACES.includes(page.component)
         </div>
 
         <div class="flex-1"></div>
-
-        <hr class="mb-1 border-border" />
-
-        <p class="flex items-center justify-center gap-1 px-3 pt-1 text-center text-sm text-muted">
-            Made with
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true">
-                <path class="text-red-600 dark:text-red-400" fill="currentColor" stroke="currentColor" d="M12 20.3C12 20.3 4.5 15.1 2.7 10.5 1.3 7 3 3.5 6.5 3.5c2.2 0 4.3 1.3 5.5 3.5 1.2-2.2 3.3-3.5 5.5-3.5 3.5 0 5.2 3.5 3.8 7-1.8 4.6-9.3 9.8-9.3 9.8Z" />
-                <line stroke="currentColor" x1="6" y1="6" x2="18" y2="18" />
-                <line stroke="currentColor" x1="18" y1="6" x2="6" y2="18" />
-            </svg>
-            Claude
-        </p>
     </aside>
 </template>

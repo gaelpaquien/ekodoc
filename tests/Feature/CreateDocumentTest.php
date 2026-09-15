@@ -156,15 +156,20 @@ it('lists the created document on the library index page', function () {
     );
 });
 
-it('is immediately filterable via type=created alongside imported documents (Story 1.7)', function () {
+// index() no longer filters (spec-nettoyage-sidebar-et-page-documents):
+// a `?type[]=` query param has no effect on it any more, so a newly created
+// document shows up in the full, unfiltered list alongside an imported one.
+it('lists the created document on the library index page even with a type query param, which is now ignored', function () {
     test()->post('/documents/create', createDocumentPayload());
-    Document::factory()->create(); // an imported document, excluded by the filter
+    $created = Document::where('source', 'created')->sole();
+    $imported = Document::factory()->create();
 
     $response = test()->get('/?type[]=created');
 
     $response->assertInertia(fn ($page) => $page
-        ->has('documents.data', 1)
-        ->where('documents.data.0.source', 'created')
+        ->has('documents.data', 2)
+        ->where('documents.data', fn ($documents) => collect($documents)->pluck('id')->sort()->values()->all()
+            === collect([$created->id, $imported->id])->sort()->values()->all())
     );
 });
 

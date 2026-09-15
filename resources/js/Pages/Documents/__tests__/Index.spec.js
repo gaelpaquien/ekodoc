@@ -1,31 +1,18 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
-import { router } from '@inertiajs/vue3';
 import Index from '@/Pages/Documents/Index.vue';
 
 // `@inertiajs/vue3` is mocked rather than imported for real (same reusable
 // shape as TagSelector.spec.js/Sidebar.spec.js): `Link` is stubbed as a
-// plain anchor, `usePage()` returns a fixed `tags`/`documentTypeOptions`
-// prop set, and `router`/no navigation is ever actually triggered by the
-// two I/O-matrix lines this file covers (empty-filtered message, document-
-// row rendering) — a no-op stub is enough.
+// plain anchor — this file no longer needs `usePage()`/`router` since
+// Index.vue dropped all filter logic (spec-nettoyage-sidebar-et-page-
+// documents), only document-row rendering and pagination remain.
 vi.mock('@inertiajs/vue3', () => ({
     Link: {
         name: 'Link',
         props: ['href'],
         template: '<a :href="href"><slot /></a>',
     },
-    usePage: () => ({
-        props: {
-            tags: [{ id: 1, name: 'Finance' }, { id: 2, name: 'RH' }],
-            documentTypeOptions: [
-                { value: 'application/pdf', label: 'PDF' },
-                { value: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', label: 'Word' },
-                { value: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', label: 'Excel' },
-            ],
-        },
-    }),
-    router: { get: vi.fn(), on: vi.fn(() => () => {}) },
 }));
 
 // AppLayout is stubbed: this file exercises Index.vue's own template
@@ -38,22 +25,12 @@ const globalStubs = {
 };
 
 describe('Documents/Index', () => {
-    // I/O matrix: "Bibliothèque vide/filtrée sans résultat".
-    it('shows the no-results-for-filters message and no rows when filters are active but no document matches', () => {
+    // spec-nettoyage-sidebar-et-page-documents: filters were removed
+    // entirely — an empty library always shows the plain message, never a
+    // "filtres actifs" variant.
+    it('shows the plain empty-library message when there are no documents', () => {
         const wrapper = mount(Index, {
-            props: { documents: { data: [], links: [] }, tagFilters: [1], typeFilters: [] },
-            global: { stubs: globalStubs },
-        });
-
-        expect(wrapper.text()).toContain('Aucun document ne correspond à ces filtres.');
-        expect(wrapper.findAll('li').length).toBe(0);
-    });
-
-    // Code review finding (spec-3-4): distinct from the filtered-empty case
-    // above — no active filters, plain empty library.
-    it('shows the plain empty-library message when there are no documents and no active filters', () => {
-        const wrapper = mount(Index, {
-            props: { documents: { data: [], links: [] }, tagFilters: [], typeFilters: [] },
+            props: { documents: { data: [], links: [] } },
             global: { stubs: globalStubs },
         });
 
@@ -81,8 +58,6 @@ describe('Documents/Index', () => {
                     ],
                     links: [],
                 },
-                tagFilters: [],
-                typeFilters: [],
             },
             global: { stubs: globalStubs },
         });
@@ -124,8 +99,6 @@ describe('Documents/Index', () => {
                         { url: '/?page=2', label: 'Suivant &raquo;', active: false },
                     ],
                 },
-                tagFilters: [],
-                typeFilters: [],
             },
             global: { stubs: globalStubs },
         });
@@ -141,20 +114,5 @@ describe('Documents/Index', () => {
         // anchor.
         expect(nav.findAll('a').length).toBe(3);
         expect(nav.text()).toContain('Précédent');
-    });
-
-    // Retro Epic 3, item 9: a filter-triggered partial reload must also
-    // refresh the shared `tags` prop, or a tag renamed/deleted elsewhere
-    // (e.g. via Configuration) stays stale in the filter's own TagSelector.
-    it('includes tags in the partial reload when a filter changes', async () => {
-        const wrapper = mount(Index, {
-            props: { documents: { data: [], links: [] }, tagFilters: [], typeFilters: [] },
-            global: { stubs: globalStubs },
-        });
-
-        await wrapper.find('input[type="checkbox"]').setValue(true);
-
-        expect(router.get).toHaveBeenCalledTimes(1);
-        expect(router.get.mock.calls[0][2].only).toContain('tags');
     });
 });

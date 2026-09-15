@@ -39,46 +39,23 @@ describe('Sidebar', () => {
         }
     });
 
-    it('renders the brand, the nav items and the footer', () => {
+    it('renders the brand and the nav items', () => {
         const wrapper = mount(Sidebar);
 
         expect(wrapper.text()).toContain('BMAD Démo');
         expect(wrapper.text()).toContain('Documents');
         expect(wrapper.text()).toContain('Recherche');
         expect(wrapper.text()).toContain('Configuration');
-        expect(wrapper.text()).toContain('Made with');
-        expect(wrapper.text()).toContain('Claude');
-        expect(wrapper.text()).not.toContain('💔');
+        expect(wrapper.text()).not.toContain('Made with');
     });
 
-    // Separators added on human request: one between the "BMAD Démo"
-    // brand and the nav/toggle button list, one between that list and the
-    // "Made with" footer.
-    it('renders a separator above the button list and another above the footer', () => {
+    // Separator added on human request, between the "BMAD Démo" brand and
+    // the nav/toggle button list. The footer (and its own separator) was
+    // removed (spec-nettoyage-sidebar-et-page-documents).
+    it('renders a separator above the button list', () => {
         const wrapper = mount(Sidebar);
 
-        expect(wrapper.findAll('hr')).toHaveLength(2);
-    });
-
-    // The footer's broken-heart emoji ("💔") was replaced with an inline
-    // heart SVG crossed out by two diagonal lines (a "cancelled" heart, not
-    // a cracked one), on human request. The heart itself stays red, but the
-    // two cross-out lines follow the surrounding theme color instead — a
-    // human correction after the first pass made the whole icon red. The
-    // heart is also filled solid red (fill="currentColor"), not just
-    // outlined, per a later human request.
-    it('renders the footer heart as a crossed-out SVG icon, not the broken-heart emoji — heart red and filled, cross-out lines theme-colored', () => {
-        const wrapper = mount(Sidebar);
-        const footer = wrapper.findAll('p').find((p) => p.text().includes('Claude'));
-        const heart = footer.find('svg');
-        const lines = heart.findAll('line');
-
-        expect(heart.exists()).toBe(true);
-        expect(lines).toHaveLength(2);
-        expect(heart.find('path').classes()).toContain('text-red-600');
-        expect(heart.find('path').attributes('fill')).toBe('currentColor');
-        expect(heart.classes()).not.toContain('text-red-600');
-        lines.forEach((line) => expect(line.classes()).not.toContain('text-red-600'));
+        expect(wrapper.findAll('hr')).toHaveLength(1);
     });
 
     // AC1: "Créer un document" and "Importer un document" render as part of

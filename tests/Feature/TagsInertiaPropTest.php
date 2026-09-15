@@ -7,9 +7,10 @@ use App\Models\Tag;
 // that TagSelector.vue reads everywhere it's mounted — as opposed to
 // TagController::index()'s own page-specific `tags` prop, already covered by
 // ManageTagsTest.php. `/` (Documents/Index) never overrides the shared prop
-// (DocumentController::index() renders only `documents`/`tagFilters`/
-// `typeFilters`), so it's read here through a real Inertia response, same
-// pattern as ManageTagsTest's own flash.tagDeleted assertion.
+// (DocumentController::index() renders only `documents`,
+// spec-nettoyage-sidebar-et-page-documents), so it's read here through a
+// real Inertia response, same pattern as ManageTagsTest's own
+// flash.tagDeleted assertion.
 it('reflects a tag rename in the shared tags Inertia prop', function () {
     $tag = Tag::factory()->create(['name' => 'Fiance']);
 
