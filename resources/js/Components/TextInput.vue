@@ -33,22 +33,6 @@ const props = defineProps({
         type: String,
         default: 'text',
     },
-    // Text size/weight is a prop, not something a caller appends via
-    // `class` — two Tailwind classes for the same property (e.g. `text-sm`
-    // from the base style below and a caller's `text-lg`) don't reliably
-    // override by DOM class order, only by Tailwind's own generated
-    // stylesheet order. A prop sidesteps that entirely (Editor.vue's title
-    // field needs `text-lg font-semibold` instead of the default `text-sm`).
-    //
-    // The base class fixes `h-10` regardless of `size` (dropping the old
-    // `py-2`, which let a bigger font's taller line-height inflate the
-    // whole field) precisely so the title field and every other field stay
-    // the same height (code review feedback: "l'input titre a bien plus de
-    // height que les select").
-    size: {
-        type: String,
-        default: 'text-sm',
-    },
 });
 
 const inputEl = ref(null);
@@ -68,6 +52,6 @@ defineExpose({
         ref="inputEl"
         v-model="model"
         :type="props.type"
-        :class="[props.size, 'w-full h-10 rounded-md border-2 border-border bg-background px-3 text-foreground focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50']"
+        class="w-full h-10 rounded-md border-2 border-border bg-background px-3 text-sm text-foreground focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
     >
 </template>

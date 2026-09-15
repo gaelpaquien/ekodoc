@@ -538,7 +538,6 @@ function submit() {
                     ref="titleInputRef"
                     v-model="form.title"
                     placeholder="Titre du document"
-                    size="text-lg font-semibold"
                 />
                 <p v-if="form.errors.title" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
                     {{ form.errors.title }}

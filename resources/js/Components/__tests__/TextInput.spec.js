@@ -3,13 +3,15 @@ import { describe, expect, it } from 'vitest';
 import TextInput from '@/Components/TextInput.vue';
 
 // Single source of truth for text-field styling (code review feedback,
-// spec-corrections-documents-ui): border-radius/padding/focus consistency
-// across every real text field in the app is now this component's job, not
-// each page's. Covered here: the two behaviors every caller actually
-// relies on (v-model, `ref` exposing `.focus()`/`.select()`) and the two
-// escape hatches a caller can use without breaking that consistency (`type`,
-// `size`) — not the exact Tailwind classes, which would make this test
-// brittle to unrelated visual tweaks.
+// spec-corrections-documents-ui): border-radius/padding/height/font-size/
+// focus consistency across every real text field in the app is now this
+// component's job, not each page's — including the editor's title field,
+// which used to render its own text-lg/font-semibold size (human feedback:
+// its text visibly didn't match every other field's). Covered here: the
+// two behaviors every caller actually relies on (v-model, `ref` exposing
+// `.focus()`/`.select()`) and the one escape hatch a caller can still use
+// without breaking that consistency (`type`) — not the exact Tailwind
+// classes, which would make this test brittle to unrelated visual tweaks.
 describe('TextInput', () => {
     it('binds v-model both ways', async () => {
         const wrapper = mount(TextInput, {
@@ -52,13 +54,10 @@ describe('TextInput', () => {
         expect(searchWrapper.find('input').attributes('type')).toBe('search');
     });
 
-    it('applies the `size` prop instead of the default text-sm (Editor.vue\'s title field needs text-lg font-semibold)', () => {
-        const wrapper = mount(TextInput, { props: { size: 'text-lg font-semibold' } });
-        const classes = wrapper.find('input').classes();
+    it('always renders text-sm — no caller overrides font size/weight (every field must look the same)', () => {
+        const wrapper = mount(TextInput);
 
-        expect(classes).toContain('text-lg');
-        expect(classes).toContain('font-semibold');
-        expect(classes).not.toContain('text-sm');
+        expect(wrapper.find('input').classes()).toContain('text-sm');
     });
 
     it('falls through arbitrary attributes (disabled, placeholder, aria-*) onto the <input>', () => {
