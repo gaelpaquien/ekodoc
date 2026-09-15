@@ -14,6 +14,13 @@ import { ref } from 'vue';
 // field with a mouse showed no lime border at all — a real data-entry
 // field needs to react to any focus, not only Tab (code review feedback).
 //
+// `focus:border-foreground` rather than `focus:border-primary`: lime
+// (`--color-primary`) read as too low-contrast/hard to notice against the
+// background in either theme (human feedback) — `--color-foreground` is
+// dark in light mode and light in dark mode by design (same token driving
+// all body text), so the focus border is always a strong, theme-correct
+// contrast against `bg-background` instead of a single fixed hue.
+//
 // `focus:outline-none` is just as deliberate: nothing here ever set
 // `outline-none`, so the browser's own native focus ring (its color/shape
 // is OS/browser-controlled, not ours — often a light/white halo in dark
@@ -61,6 +68,6 @@ defineExpose({
         ref="inputEl"
         v-model="model"
         :type="props.type"
-        :class="[props.size, 'w-full h-10 rounded-md border-2 border-border bg-background px-3 text-foreground focus:border-primary focus:outline-none disabled:cursor-not-allowed disabled:opacity-50']"
+        :class="[props.size, 'w-full h-10 rounded-md border-2 border-border bg-background px-3 text-foreground focus:border-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50']"
     >
 </template>

@@ -22,6 +22,15 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    // false where the host already renders its own label for this field
+    // (Search.vue's "Filtrer par tag" `<legend>`, Show.vue's "Tags :" `<dt>`)
+    // — showing "Tags" right underneath was a redundant second title (human
+    // feedback). The input still needs an accessible name when the visible
+    // label is hidden, so it falls back to `aria-label="Tags"` below.
+    showLabel: {
+        type: Boolean,
+        default: true,
+    },
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -153,7 +162,7 @@ function onKeydown(event) {
 
 <template>
     <div class="w-full">
-        <label :for="`${instanceId}-input`" class="mb-1 block text-sm font-medium text-foreground">
+        <label v-if="showLabel" :for="`${instanceId}-input`" class="mb-1 block text-sm font-medium text-foreground">
             Tags
         </label>
 
@@ -188,6 +197,7 @@ function onKeydown(event) {
                 :aria-activedescendant="isOpen && highlightedIndex >= 0 && filteredTags[highlightedIndex]
                     ? `${instanceId}-option-${filteredTags[highlightedIndex].id}`
                     : undefined"
+                :aria-label="showLabel ? undefined : 'Tags'"
                 placeholder="Rechercher un tag…"
                 :class="disabled ? 'cursor-not-allowed opacity-50' : ''"
                 :readonly="disabled"

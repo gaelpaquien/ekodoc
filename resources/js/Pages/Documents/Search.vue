@@ -209,7 +209,7 @@ function formatDate(dateString) {
                     <legend class="mb-2 text-sm font-medium text-foreground">
                         Filtrer par tag
                     </legend>
-                    <TagSelector v-model="selectedTagIds" />
+                    <TagSelector v-model="selectedTagIds" :show-label="false" />
                 </fieldset>
 
                 <div v-if="selectedTagIds.length > 0" class="flex flex-wrap items-center gap-2 pt-1">

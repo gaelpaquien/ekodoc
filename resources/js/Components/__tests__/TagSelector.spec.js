@@ -343,4 +343,23 @@ describe('TagSelector', () => {
         // unset rather than accidentally pointing at instance A's listbox id.
         expect(inputB.attributes('aria-controls')).toBeUndefined();
     });
+
+    // Search.vue's "Filtrer par tag" legend and Show.vue's "Tags :" dt each
+    // already title this field — showing TagSelector's own "Tags" label too
+    // was a redundant second title (human feedback).
+    describe('showLabel', () => {
+        it('renders the "Tags" label by default', () => {
+            const wrapper = mount(TagSelector, { props: { modelValue: [] } });
+
+            expect(wrapper.find('label').exists()).toBe(true);
+            expect(wrapper.text()).toContain('Tags');
+        });
+
+        it('hides the label when showLabel is false, falling back to aria-label so the field stays named', () => {
+            const wrapper = mount(TagSelector, { props: { modelValue: [], showLabel: false } });
+
+            expect(wrapper.find('label').exists()).toBe(false);
+            expect(wrapper.find('input').attributes('aria-label')).toBe('Tags');
+        });
+    });
 });
